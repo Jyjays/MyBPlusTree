@@ -6,7 +6,7 @@
 namespace mybplus {
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) -> void{
   SetMaxSize(max_size);
   // allcocate memory for array_, but can's use new to allocate memory
   // array_ = new MappingType[max_size];
@@ -41,34 +41,36 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const -> KeyType {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key)
+    -> void {
   array_[index].first = key;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index,
-                                                const ValueType &value) {
+                                                const ValueType &value)
+    -> void {
   array_[index].second = value;
 }
 
-/*
- * Helper method to get the value associated with input "index"(a.k.a array
- * offset)
- */
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
   return array_[index].second;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindValue(const KeyType &key, const KeyComparator &comparator,
-                                             int *child_page_index) const -> ValueType {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindValue(const KeyType &key,
+                                               const KeyComparator &comparator,
+                                               int *child_page_index) const
+    -> ValueType {
   int size = GetSize();
-  auto compare_first = [&comparator](const KeyType &lhs_key, const MappingType &rhs) -> bool {
+  auto compare_first = [&comparator](const KeyType &lhs_key,
+                                     const MappingType &rhs) -> bool {
     return comparator(lhs_key, rhs.first) < 0;
   };
 
-  auto it = std::upper_bound(array_.begin() + 1, array_.begin() + size, key, compare_first);
+  auto it = std::upper_bound(array_.begin() + 1, array_.begin() + size, key,
+                             compare_first);
   auto res = std::prev(it);
 
   if (child_page_index != nullptr) {
@@ -115,13 +117,14 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Delete(int child_page_index) -> bool {
   return true;
 }
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const
+    -> int {
   for (int i = 0; i < GetSize(); i++) {
     if (array_[i].second == value) {
       return i;
     }
   }
-  return -1; 
+  return -1;
 }
 
 // valuetype for internalNode should be page id_t

@@ -46,7 +46,7 @@ TEST_F(BPlusTreePerformanceTest, InsertPerformance) {
     
     for (const auto& key : keys) {
         ValueType value;
-        std::string str = "perf_value_" + std::to_string(key);
+        std::string str = "v" + std::to_string(key);
         std::strcpy(value.data(), str.c_str());
         
         EXPECT_TRUE(tree->Insert(key, value));
@@ -71,7 +71,7 @@ TEST_F(BPlusTreePerformanceTest, SearchPerformance) {
     for (int i = 0; i < NUM_ITEMS; ++i) {
         KeyType key = i * 2;
         ValueType value;
-        std::string str = "search_value_" + std::to_string(key);
+        std::string str = "v" + std::to_string(key);
         std::strcpy(value.data(), str.c_str());
         
         EXPECT_TRUE(tree->Insert(key, value));
@@ -132,7 +132,7 @@ TEST_F(BPlusTreePerformanceTest, MixedOperationPerformance) {
         if (operation == 0 || inserted_keys.empty()) {
             // 插入操作
             ValueType value;
-            std::string str = "mixed_value_" + std::to_string(key);
+            std::string str = "v" + std::to_string(key);
             std::strcpy(value.data(), str.c_str());
             
             if (std::find(inserted_keys.begin(), inserted_keys.end(), key) == inserted_keys.end()) {
@@ -170,7 +170,7 @@ TEST_F(BPlusTreePerformanceTest, SequentialInsertPerformance) {
     
     for (int i = 0; i < NUM_ITEMS; ++i) {
         ValueType value;
-        std::string str = "seq_value_" + std::to_string(i);
+        std::string str = "v" + std::to_string(i);
         std::strcpy(value.data(), str.c_str());
         
         EXPECT_TRUE(tree->Insert(i, value));
@@ -193,7 +193,7 @@ TEST_F(BPlusTreePerformanceTest, ReverseSequentialInsertPerformance) {
     
     for (int i = NUM_ITEMS - 1; i >= 0; --i) {
         ValueType value;
-        std::string str = "rev_seq_value_" + std::to_string(i);
+        std::string str = "v" + std::to_string(i);
         std::strcpy(value.data(), str.c_str());
         
         EXPECT_TRUE(tree->Insert(i, value));
@@ -214,7 +214,7 @@ TEST_F(BPlusTreePerformanceTest, MemoryUsageTest) {
     // 插入数据并观察内存使用
     for (int i = 0; i < NUM_ITEMS; ++i) {
         ValueType value;
-        std::string str = "memory_value_" + std::to_string(i);
+        std::string str = "v" + std::to_string(i);
         std::strcpy(value.data(), str.c_str());
         
         EXPECT_TRUE(tree->Insert(i, value));
@@ -226,7 +226,7 @@ TEST_F(BPlusTreePerformanceTest, MemoryUsageTest) {
         EXPECT_TRUE(tree->GetValue(i, &results));
         EXPECT_EQ(results.size(), 1);
         
-        std::string expected = "memory_value_" + std::to_string(i);
+        std::string expected = "v" + std::to_string(i);
         EXPECT_STREQ(results[0].data(), expected.c_str());
     }
     

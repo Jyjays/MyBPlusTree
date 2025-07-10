@@ -9,18 +9,18 @@ namespace mybplus {
 
 #define B_PLUS_TREE_INTERNAL_PAGE_TYPE BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>
 #define INTERNAL_PAGE_HEADER_SIZE 12
-#define INTERNAL_PAGE_SIZE ((BUSTUB_PAGE_SIZE - INTERNAL_PAGE_HEADER_SIZE) / (sizeof(MappingType)))
+#define INTERNAL_PAGE_SIZE ((PAGE_SIZE - INTERNAL_PAGE_HEADER_SIZE) / (sizeof(MappingType)))
 
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTreeInternalPage : public BPlusTreePage {
  public:
-  void Init(int max_size = INTERNAL_PAGE_SIZE);
+  auto Init(int max_size = INTERNAL_PAGE_SIZE) -> void;
 
   auto KeyAt(int index) const -> KeyType;
 
-  void SetKeyAt(int index, const KeyType &key);
+  auto SetKeyAt(int index, const KeyType &key) -> void;
 
-  auto SetValueAt(int index, const ValueType &value);
+  auto SetValueAt(int index, const ValueType &value) -> void;
 
   auto ValueIndex(const ValueType &value) const -> int;
 

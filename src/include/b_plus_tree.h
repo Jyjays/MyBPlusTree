@@ -9,6 +9,8 @@
 #include <shared_mutex>
 #include <string>
 #include <vector>
+#include <deque>
+#include <unordered_map>
 
 #include "b_plus_tree_internal.h"
 #include "b_plus_tree_leaf.h"
@@ -16,11 +18,78 @@
 
 namespace mybplus {
 
-struct PrintableBPlusTree;
+class Context {
+  public:
+    Context() = default;
+    auto WPush(BPlusTreePage *page) -> void {
+      page->WLock();  
+      WritePath.push_back(page);
+    }
+    auto RPush(BPlusTreePage *page) -> void {
+      page->RLock();
+      ReadPath.push_back(page);
+    }
+    auto WPopBack() -> void {
+      if (!WritePath.empty()) {
+        WritePath.back()->Unlock();
+        WritePath.pop_back();
+      }
+    }
+    auto RPopBack() -> void {
+      if (!ReadPath.empty()) {
+        ReadPath.back()->RUnlock();
+        ReadPath.pop_back();
+      }
+    }
+    auto WPopFront() -> void {
+      if (!WritePath.empty()) {
+        WritePath.front()->Unlock();
+        WritePath.pop_front();
+      }
+    }
+    auto RPopFront() -> void {
+      if (!ReadPath.empty()) {
+        ReadPath.front()->RUnlock();
+        ReadPath.pop_front();
+      }
+    }
+    auto WBack() -> BPlusTreePage* {
+      if (!WritePath.empty()) {
+        return WritePath.back();
+      }
+      return nullptr;
+    }
+    auto RBack() -> BPlusTreePage* {
+      if (!ReadPath.empty()) {
+        return ReadPath.back();
+      }
+      return nullptr;
+    }
+    auto Clear() -> void {
+      for (auto &page : WritePath) {
+        page->Unlock();
+      }
+      for (auto &page : ReadPath) {
+        page->RUnlock();
+      }
+      WritePath.clear();
+      ReadPath.clear();
+    }
+    auto IsEmpty() const -> bool {
+      return WritePath.empty() && ReadPath.empty();
+    }
+    auto WSize() const -> size_t {
+      return WritePath.size();
+    }
+    auto RSize() const -> size_t {
+      return ReadPath.size();
+    }
+    std::deque<BPlusTreePage*> WritePath;
+    std::deque<BPlusTreePage*> ReadPath;
+};
 
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
 
-// Main class providing the API for the Interactive B+ Tree.
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTree {
   using InternalPage = BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>;
@@ -39,16 +108,16 @@ class BPlusTree {
 
   auto InsertIntoParent(BPlusTreePage *old_node, const KeyType &key,
                         BPlusTreePage *new_node,
-                        std::vector<BPlusTreePage *> &path) -> void;
+                        Context *ctx) -> void;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key);
 
   auto RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key,
-                       std::vector<BPlusTreePage *> &path) -> void;
+                       Context *ctx) -> void;
 
   auto RemoveInternalEntry(InternalPage *internal_page, const KeyType &key,
-                           std::vector<BPlusTreePage *> &path) -> void;
+                           Context *ctx) -> void;
 
   auto LeafCanMerge(LeafPage *merge_page, LeafPage *left_leaf,
                     LeafPage *right_leaf) -> std::pair<bool, bool>;

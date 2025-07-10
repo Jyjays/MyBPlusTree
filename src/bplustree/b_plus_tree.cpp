@@ -12,7 +12,6 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, const KeyComparator &comparator,
       comparator_(comparator),
       leaf_max_size_(leaf_max_size),
       internal_max_size_(internal_max_size) {
-  std::unique_lock<std::shared_mutex> lock(mutex_);
   root_page_id_ = INVALID_PAGE_ID;
 }
 
@@ -83,8 +82,11 @@ void BPLUSTREE_TYPE::DeletePage(page_id_t page_id) {
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key,
                               std::vector<ValueType> *result) -> bool {
-  std::shared_lock<std::shared_mutex> lock(mutex_);
+#ifdef USING_CRABBING_PROTOCOL
 
+#else
+  std::shared_lock<std::shared_mutex> lock(mutex_);
+#endif
   if (root_page_id_ == INVALID_PAGE_ID) {
     return false;
   }
@@ -136,41 +138,69 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value)
   }
 
   // 查找要插入的叶子页面
-  std::vector<BPlusTreePage *> path;
+  Context ctx;
   BPlusTreePage *page = GetPage(root_page_id_);
-  path.push_back(page);
+  ctx.WPush(page);
 
   while (!page->IsLeafPage()) {
     InternalPage *internal_page = static_cast<InternalPage *>(page);
     page_id_t next_page_id =
         internal_page->FindValue(key, comparator_, nullptr);
     page = GetPage(next_page_id);
-    path.push_back(page);
+    if (!page) {
+      ctx.Clear();
+      return false;  // 页面不存在
+    }
+    ctx.WPush(page);
   }
 
   LeafPage *leaf_page = static_cast<LeafPage *>(page);
 
+  // 检查重复键
+  ValueType existing_value;
+  int existing_index = -1;
+  if (leaf_page->FindValue(key, comparator_, existing_value, &existing_index)) {
+    // 两种策略，要么更新现有值，要么忽略插入
+    // leaf_page->SetAt(existing_index, key, value);
+    // return true;
+    ctx.Clear();
+    return false;
+  }
+
   // 如果页面有足够空间，直接插入
   if (page->IsSafe(OperationType::INSERT)) {
-    return leaf_page->Insert(key, value, comparator_);
+    //return leaf_page->Insert(key, value, comparator_);
+    if (ctx.WSize() > 1) {
+      ctx.WPopFront();
+    }
+    if (leaf_page->Insert(key, value, comparator_)) {
+      ctx.Clear();
+      return true;
+    } else {
+      ctx.Clear();
+      return false;  // 插入失败
+    }
   }
 
   // 页面需要分裂
   page_id_t new_page_id;
   LeafPage *new_leaf_page = NewLeafPage(&new_page_id);
   if (!new_leaf_page) {
+    ctx.Clear();
     return false;  // 分配新页面失败
   }
   KeyType new_key =
       SplitLeafPage(leaf_page, new_leaf_page, key, value, new_page_id);
   if (comparator_(KeyType(), new_key) == 0) {
     DeletePage(new_page_id);
+    ctx.Clear();
     return false;
   }
 
   // 插入到父节点
-  path.pop_back();  // 移除叶子节点
-  InsertIntoParent(leaf_page, new_key, new_leaf_page, path);
+  ctx.WPopBack();
+  InsertIntoParent(leaf_page, new_key, new_leaf_page, &ctx);
+  ctx.Clear();
   return true;
 }
 
@@ -178,15 +208,14 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node,
                                       const KeyType &key,
                                       BPlusTreePage *new_node,
-                                      std::vector<BPlusTreePage *> &path)
+                                      Context *ctx)
     -> void {
   // 如果旧节点是根节点
   if (old_node->GetPageId() == root_page_id_) {
-    // 创建新的内部页面
     page_id_t new_page_id;
     InternalPage *new_internal_page = NewInternalPage(&new_page_id);
     if (!new_internal_page) {
-      return;  // 分配新页面失败
+      return;  
     }
 
     new_internal_page->SetPageId(new_page_id);
@@ -200,8 +229,8 @@ auto BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node,
   }
 
   // 查找父节点
-  BPlusTreePage *parent_page = path.back();
-  path.pop_back();
+  BPlusTreePage *parent_page = ctx->WBack();
+  ctx->WPopBack();
   if (!parent_page || parent_page->IsLeafPage()) {
     return;
   }
@@ -211,7 +240,6 @@ auto BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node,
   // 如果父页面有足够空间，直接插入
   if (parent_page->IsSafe(OperationType::INSERT)) {
     parent_internal->Insert(key, new_node->GetPageId(), comparator_);
-    return;
   }
 
   // 父页面需要分裂
@@ -227,7 +255,7 @@ auto BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node,
 
   KeyType middle_key = SplitInternalPage(parent_internal, new_internal_page,
                                          key, new_node->GetPageId());
-  InsertIntoParent(parent_internal, middle_key, new_internal_page, path);
+  InsertIntoParent(parent_internal, middle_key, new_internal_page, ctx);
 }
 
 /*****************************************************************************
@@ -249,25 +277,37 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
   }
 
   // 查找要删除的叶子页面
-  std::vector<BPlusTreePage *> path;
+  Context ctx;
   BPlusTreePage *page = GetPage(root_page_id_);
-  path.push_back(page);
+  ctx.WPush(page);
 
   while (!page->IsLeafPage()) {
     InternalPage *internal_page = static_cast<InternalPage *>(page);
     page_id_t next_page_id =
         internal_page->FindValue(key, comparator_, nullptr);
     page = GetPage(next_page_id);
-    path.push_back(page);
+    if (!page) {
+      ctx.Clear();
+      return;  // 页面不存在
+    }
+    ctx.WPush(page);
   }
 
   LeafPage *leaf_page = static_cast<LeafPage *>(page);
   int delete_index = -1;
   ValueType value;
+  // 如果叶子页面没有找到值，直接返回
+  if (!leaf_page->FindValue(key, comparator_, value, &delete_index)) {
+    ctx.Clear();
+    return; 
+  }
 
   // 如果页面安全或者是根页面，直接删除
   if (leaf_page->IsSafe(OperationType::DELETE) ||
       leaf_page->GetPageId() == root_page_id_) {
+    if (ctx.WSize() > 1) {
+      ctx.WPopFront();
+    }
     if (leaf_page->FindValue(key, comparator_, value, &delete_index)) {
       leaf_page->Delete(delete_index);
     }
@@ -277,16 +317,20 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
       DeletePage(leaf_page->GetPageId());
       root_page_id_ = INVALID_PAGE_ID;
     }
+    ctx.Clear();
     return;
   }
 
   // 页面不安全，需要借用或合并
-  RemoveLeafEntry(leaf_page, key, path);
+  RemoveLeafEntry(leaf_page, key, &ctx);
+
+  ctx.Clear();
+
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key,
-                                     std::vector<BPlusTreePage *> &path)
+                                     Context *ctx)
     -> void {
   int delete_index = -1;
   ValueType value;
@@ -297,10 +341,11 @@ auto BPLUSTREE_TYPE::RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key,
   leaf_page->Delete(delete_index);
 
   // 查找父节点和兄弟节点
-  BPlusTreePage *last_page = path.back();
-  path.pop_back();
+  BPlusTreePage *last_page = ctx->WBack();
+  ctx->WPopBack();
   if (!last_page || last_page->IsLeafPage()) {
-    return;  // 没有父节点或不是内部页面
+    ctx->Clear();
+    return; 
   }
   InternalPage *parent_page = static_cast<InternalPage *>(last_page);
 
@@ -380,9 +425,7 @@ auto BPLUSTREE_TYPE::RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key,
       parent_page->Delete(merge_index);
       kept_page->SetNextPageId(removed_page->GetNextPageId());
     } else {
-      // RemoveInternalEntry(parent_page, parent_key, removed_page->GetPageId(),
-      //                     path);
-      RemoveInternalEntry(parent_page, parent_key, path);
+      RemoveInternalEntry(parent_page, parent_key, ctx);
     }
 
     DeletePage(removed_page->GetPageId());
@@ -392,7 +435,7 @@ auto BPLUSTREE_TYPE::RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key,
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::RemoveInternalEntry(InternalPage *internal_page,
                                          const KeyType &key,
-                                         std::vector<BPlusTreePage *> &path)
+                                         Context *ctx)
     -> void {
   int delete_index = -1;
   if (!internal_page->FindValue(key, comparator_, &delete_index)) {
@@ -411,8 +454,8 @@ auto BPLUSTREE_TYPE::RemoveInternalEntry(InternalPage *internal_page,
   }
 
   // 查找父节点和兄弟节点（类似叶子节点处理）
-  BPlusTreePage *last_page = path.back();
-  path.pop_back();
+  BPlusTreePage *last_page = ctx->WBack();
+  ctx->WPopBack();
   if (!last_page || last_page->IsLeafPage()) {
     return;  // 没有父节点或不是内部页面
   }
@@ -497,7 +540,7 @@ auto BPLUSTREE_TYPE::RemoveInternalEntry(InternalPage *internal_page,
     if (parent_page->IsSafe(OperationType::DELETE)) {
       parent_page->Delete(merge_index);
     } else {
-      RemoveInternalEntry(parent_page, parent_key, path);
+      RemoveInternalEntry(parent_page, parent_key, ctx);
     }
 
     DeletePage(removed_page->GetPageId());
@@ -517,46 +560,110 @@ auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t {
  * UTILITIES AND DEBUG
  *****************************************************************************/
 
+// INDEX_TEMPLATE_ARGUMENTS
+// auto BPLUSTREE_TYPE::SplitLeafPage(LeafPage *leaf_page, LeafPage *new_page,
+//                                    const KeyType &key, const ValueType &value,
+//                                    page_id_t new_page_id) -> KeyType {
+//   // 插入新键到旧节点
+//   leaf_page->Insert(key, value, comparator_);
+
+//   int cur_size = leaf_page->GetSize();
+//   int split_index = cur_size / 2;
+
+//   // 分裂节点
+//   new_page->CopyHalfFrom(leaf_page->GetData(), split_index, cur_size);
+//   new_page->SetSize(cur_size - split_index);
+//   leaf_page->SetSize(split_index);
+
+//   // 提升右节点的第一个键
+//   KeyType middle_key = new_page->KeyAt(0);
+//   new_page->SetNextPageId(leaf_page->GetNextPageId());
+//   leaf_page->SetNextPageId(new_page_id);
+//   return middle_key;
+// }
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::SplitLeafPage(LeafPage *leaf_page, LeafPage *new_page,
                                    const KeyType &key, const ValueType &value,
                                    page_id_t new_page_id) -> KeyType {
-  // 插入新键到旧节点
-  leaf_page->Insert(key, value, comparator_);
-
-  int cur_size = leaf_page->GetSize();
-  int split_index = cur_size / 2;
-
-  // 分裂节点
-  new_page->CopyHalfFrom(leaf_page->GetData(), split_index, cur_size);
-  new_page->SetSize(cur_size - split_index);
-  leaf_page->SetSize(split_index);
-
-  // 提升右节点的第一个键
-  KeyType middle_key = new_page->KeyAt(0);
+  // 创建临时数组存储所有键值对（包括新插入的）
+  std::vector<std::pair<KeyType, ValueType>> all_pairs;
+  
+  // 复制现有数据
+  for (int i = 0; i < leaf_page->GetSize(); i++) {
+    all_pairs.emplace_back(leaf_page->KeyAt(i), leaf_page->ValueAt(i));
+  }
+  
+  // 找到新键的插入位置
+  auto compare_first = [this](const std::pair<KeyType, ValueType> &lhs,
+                             const std::pair<KeyType, ValueType> &rhs) -> bool {
+    return comparator_(lhs.first, rhs.first) < 0;
+  };
+  
+  auto it = std::lower_bound(all_pairs.begin(), all_pairs.end(), 
+                            std::make_pair(key, value), compare_first);
+  all_pairs.insert(it, std::make_pair(key, value));
+  
+  // 分裂点
+  int split_index = all_pairs.size() / 2;
+  
+  // 清空原节点并重新填充左半部分
+  leaf_page->SetSize(0);
+  for (int i = 0; i < split_index; i++) {
+    leaf_page->Insert(all_pairs[i].first, all_pairs[i].second, comparator_);
+  }
+  
+  // 填充新节点（右半部分）
+  for (int i = split_index; i < all_pairs.size(); i++) {
+    new_page->Insert(all_pairs[i].first, all_pairs[i].second, comparator_);
+  }
+  
+  // 更新链接
   new_page->SetNextPageId(leaf_page->GetNextPageId());
   leaf_page->SetNextPageId(new_page_id);
-  return middle_key;
+  
+  // 返回右节点的第一个键作为分隔符
+  return new_page->KeyAt(0);
 }
-
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::SplitInternalPage(InternalPage *internal_page,
                                        InternalPage *new_page,
                                        const KeyType &key,
                                        page_id_t new_page_id) -> KeyType {
-  // 插入新键到旧节点
-  internal_page->Insert(key, new_page_id, comparator_);
-
-  int cur_size = internal_page->GetSize();
-  int split_index = cur_size / 2;
-
-  // 分裂节点
-  new_page->CopyHalfFrom(internal_page->GetData(), split_index, cur_size);
-  new_page->SetSize(cur_size - split_index);
-  internal_page->SetSize(split_index);
-
-  // 提升右节点的第一个键
-  KeyType middle_key = new_page->KeyAt(0);
+  // 创建临时数组存储所有键值对（包括新插入的）
+  std::vector<std::pair<KeyType, page_id_t>> all_pairs;
+  
+  // 复制现有数据（跳过第一个虚拟键）
+  for (int i = 1; i < internal_page->GetSize(); i++) {
+    all_pairs.emplace_back(internal_page->KeyAt(i), internal_page->ValueAt(i));
+  }
+  
+  // 找到新键的插入位置
+  auto compare_first = [this](const std::pair<KeyType, page_id_t> &lhs,
+                             const std::pair<KeyType, page_id_t> &rhs) -> bool {
+    return comparator_(lhs.first, rhs.first) < 0;
+  };
+  
+  auto it = std::lower_bound(all_pairs.begin(), all_pairs.end(), 
+                            std::make_pair(key, new_page_id), compare_first);
+  all_pairs.insert(it, std::make_pair(key, new_page_id));
+  
+  // 分裂点
+  int split_index = all_pairs.size() / 2;
+  KeyType middle_key = all_pairs[split_index].first;
+  
+  // 清空原节点并重新填充左半部分
+  internal_page->SetSize(1); // 保留第一个虚拟键
+  for (int i = 0; i < split_index; i++) {
+    internal_page->Insert(all_pairs[i].first, all_pairs[i].second, comparator_);
+  }
+  
+  // 填充新节点（右半部分，跳过中间键）
+  new_page->SetSize(1); // 设置第一个虚拟键
+  new_page->SetValueAt(0, all_pairs[split_index].second);
+  for (int i = split_index + 1; i < all_pairs.size(); i++) {
+    new_page->Insert(all_pairs[i].first, all_pairs[i].second, comparator_);
+  }
+  
   return middle_key;
 }
 

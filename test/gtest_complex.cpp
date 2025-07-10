@@ -13,7 +13,7 @@ namespace test {
 class BPlusTreeComplexTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        tree = std::make_unique<BPlusTree<KeyType, ValueType, KeyComparator>>("test_tree", comparator);
+        tree = std::make_unique<BPlusTree<KeyType, ValueType, KeyComparator>>("test_tree", comparator, 3, 3);
     }
 
     void TearDown() override {
@@ -73,7 +73,7 @@ TEST_F(BPlusTreeComplexTest, RandomInsertOrder) {
     // 随机顺序插入
     for (const auto& key : keys) {
         ValueType value;
-        std::string str = "random_value_" + std::to_string(key);
+        std::string str = "value_" + std::to_string(key);
         std::strcpy(value.data(), str.c_str());
         
         EXPECT_TRUE(tree->Insert(key, value));
@@ -85,7 +85,7 @@ TEST_F(BPlusTreeComplexTest, RandomInsertOrder) {
         EXPECT_TRUE(tree->GetValue(i, &results));
         EXPECT_EQ(results.size(), 1);
         
-        std::string expected = "random_value_" + std::to_string(i);
+        std::string expected = "value_" + std::to_string(i);
         EXPECT_STREQ(results[0].data(), expected.c_str());
     }
 }
@@ -126,7 +126,7 @@ TEST_F(BPlusTreeComplexTest, StressTest) {
     for (int i = 0; i < NUM_OPERATIONS; ++i) {
         KeyType key = key_dist(gen);
         ValueType value;
-        std::string str = "stress_value_" + std::to_string(key);
+        std::string str = "v_" + std::to_string(key);
         std::strcpy(value.data(), str.c_str());
         
         if (inserted_keys.find(key) == inserted_keys.end()) {
@@ -145,7 +145,7 @@ TEST_F(BPlusTreeComplexTest, StressTest) {
         EXPECT_TRUE(tree->GetValue(key, &results));
         EXPECT_EQ(results.size(), 1);
         
-        std::string expected = "stress_value_" + std::to_string(key);
+        std::string expected = "v_" + std::to_string(key);
         EXPECT_STREQ(results[0].data(), expected.c_str());
     }
 }
