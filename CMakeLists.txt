@@ -65,3 +65,14 @@ gtest_discover_tests(gtest_runner)
 
 add_executable(test_bplustree test/test_main.cpp)
 target_link_libraries(test_bplustree PRIVATE mybplustree)
+
+add_executable(test_serializer test/b_plus_tree_serializer.cpp)
+
+target_include_directories(
+    test_serializer PRIVATE
+    "src/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/third_party/googletest/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest/include"
+)
+
+target_link_libraries(test_serializer PRIVATE mybplustree gtest gtest_main)

@@ -53,7 +53,7 @@ auto BPLUSTREE_TYPE::NewLeafPage(page_id_t *new_page_id) -> LeafPage * {
   LeafPage *leaf_page = new LeafPage();
   leaf_page->SetPageId(*new_page_id);
   leaf_page->Init(leaf_max_size_);
-  leaf_page->SetMaxSize(leaf_max_size_);
+  //leaf_page->SetMaxSize(leaf_max_size_);
   pages_[*new_page_id] = leaf_page;
   return leaf_page;
 }
@@ -65,7 +65,7 @@ auto BPLUSTREE_TYPE::NewInternalPage(page_id_t *new_page_id) -> InternalPage * {
   InternalPage *internal_page = new InternalPage();
   internal_page->SetPageId(*new_page_id);
   internal_page->Init(internal_max_size_);
-  internal_page->SetMaxSize(internal_max_size_);
+  //internal_page->SetMaxSize(internal_max_size_);
   pages_[*new_page_id] = internal_page;
   return internal_page;
 }
@@ -387,6 +387,7 @@ auto BPLUSTREE_TYPE::RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key,
     page_id_t left_page_id = parent_page->ValueAt(index - 1);
     BPlusTreePage *left_page = GetPage(left_page_id);
     if (left_page && left_page->IsLeafPage()) {
+      ctx->WPush(left_page);
       left_bro = static_cast<LeafPage *>(left_page);
     }
   }
@@ -394,6 +395,7 @@ auto BPLUSTREE_TYPE::RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key,
     page_id_t right_page_id = parent_page->ValueAt(index + 1);
     BPlusTreePage *right_page = GetPage(right_page_id);
     if (right_page && right_page->IsLeafPage()) {
+      ctx->WPush(right_page);
       right_bro = static_cast<LeafPage *>(right_page);
     }
   }
@@ -504,6 +506,7 @@ auto BPLUSTREE_TYPE::RemoveInternalEntry(InternalPage *internal_page,
     page_id_t left_page_id = parent_page->ValueAt(index - 1);
     BPlusTreePage *left_page = GetPage(left_page_id);
     if (left_page && !left_page->IsLeafPage()) {
+      ctx->WPush(left_page);
       left_bro = static_cast<InternalPage *>(left_page);
     }
   }
@@ -511,6 +514,7 @@ auto BPLUSTREE_TYPE::RemoveInternalEntry(InternalPage *internal_page,
     page_id_t right_page_id = parent_page->ValueAt(index + 1);
     BPlusTreePage *right_page = GetPage(right_page_id);
     if (right_page && !right_page->IsLeafPage()) {
+      ctx->WPush(right_page);
       right_bro = static_cast<InternalPage *>(right_page);
     }
   }
@@ -761,6 +765,37 @@ auto BPLUSTREE_TYPE::InternalCanMerge(InternalPage *merge_page,
   return {false, false};
 }
 
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::CreateAndRegisterPage(page_id_t page_id, bool is_leaf) {
+    if (pages_.count(page_id) > 0) {
+        return;
+    }
+
+    BPlusTreePage *page = nullptr;
+    if (is_leaf) {
+        page = new LeafPage();
+        static_cast<LeafPage *>(page)->Init(leaf_max_size_);
+    } else {
+        page = new InternalPage();
+        static_cast<InternalPage *>(page)->Init(internal_max_size_);
+    }
+
+    page->SetPageId(page_id);
+    pages_[page_id] = page;
+
+    next_page_id_ = std::max(next_page_id_, page_id + 1);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::Clear() -> void {
+    for (auto &pair : pages_) {
+        delete pair.second;
+    }
+    pages_.clear();
+    root_page_id_ = INVALID_PAGE_ID;
+    next_page_id_ = 0; // 或者您的起始ID
+}
 template class BPlusTree<int64_t, std::array<char, 16UL>, Comparator>;
 
 }  // namespace mybplus

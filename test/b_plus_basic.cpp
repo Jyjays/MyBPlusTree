@@ -3,7 +3,7 @@
 #include <cstring>
 #include "b_plus_tree.h"
 #include "config.h"
-
+#include "b_plus_tree_serializer.h"
 namespace mybplus {
 namespace test {
 

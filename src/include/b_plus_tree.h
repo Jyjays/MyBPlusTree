@@ -13,7 +13,7 @@
 
 #include "b_plus_tree_internal.h"
 #include "b_plus_tree_leaf.h"
-#include "config.h"
+#include "config.h" 
 
 namespace mybplus {
 
@@ -33,38 +33,48 @@ class Context {
   }
 
   auto WLockRoot() -> void {
+#ifdef USING_CRABBING_PROTOCOL
     if (!is_root_wlocked_) {
       root_mutex_.lock();
       is_root_wlocked_ = true;
     }
+#endif
   }
   auto RLockRoot() -> void {
+#ifdef USING_CRABBING_PROTOCOL
     if (!is_root_rlocked_) {
       root_mutex_.lock_shared();
       is_root_rlocked_ = true;
     }
+#endif
   }
   auto WUnlockRoot() -> void {
+#ifdef USING_CRABBING_PROTOCOL
     if (is_root_wlocked_) {
       root_mutex_.unlock();
       is_root_wlocked_ = false;
     }
+#endif
   }
   auto RUnlockRoot() -> void {
+#ifdef USING_CRABBING_PROTOCOL
     if (is_root_rlocked_) {
       root_mutex_.unlock_shared();
       is_root_rlocked_ = false;
     }
+#endif
   }
 
   auto CheckAndReleaseAncestors(BPlusTreePage *current_page, OperationType op)
       -> void {
+#ifdef USING_CRABBING_PROTOCOL
     if (current_page->IsSafe(op)) {
       // 释放除当前页面外的所有祖先锁
       while (WritePath.size() > 1) {
         WPopFront();
       }
     }
+#endif
   }
   auto WPush(BPlusTreePage *page) -> void {
 #ifdef USING_CRABBING_PROTOCOL
@@ -154,7 +164,12 @@ class Context {
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
 
 INDEX_TEMPLATE_ARGUMENTS
+class BPlusTreeSerializer;
+
+
+INDEX_TEMPLATE_ARGUMENTS
 class BPlusTree {
+  friend class BPlusTreeSerializer<KeyType, ValueType, KeyComparator>;
   using InternalPage = BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>;
   using LeafPage = BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>;
 
@@ -189,15 +204,31 @@ class BPlusTree {
   // Return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result) -> bool;
 
+  auto CreateAndRegisterPage(page_id_t page_id, bool is_leaf) -> void;
+
+  auto Clear() -> void;
+
   // Return the page id of the root node
   auto GetRootPageId() -> int32_t;
 
-  // read data from file and insert one by one
-  void InsertFromFile(const std::string &file_name);
-  // read data from file and remove one by one
-  void RemoveFromFile(const std::string &file_name);
+  auto GetLeafMaxSize() const -> int { return leaf_max_size_; }
 
-  void BatchOpsFromFile(const std::string &file_name);
+  auto GetInternalMaxSize() const -> int { return internal_max_size_; }
+
+  auto GetPageCount() const -> size_t {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
+    return pages_.size();
+  }
+  auto SetLeafMaxSize(int size) -> void {
+    leaf_max_size_ = size;
+  }
+  auto SetInternalMaxSize(int size) -> void {
+    internal_max_size_ = size;
+  }
+  auto SetRootPageId(int32_t page_id) -> void {
+    std::lock_guard<std::mutex> lock(root_mutex_);
+    root_page_id_ = page_id;
+  }
 
  private:
   auto GetPage(page_id_t page_id) -> BPlusTreePage *;
