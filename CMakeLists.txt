@@ -41,9 +41,10 @@ endif()
 enable_testing()
 
 add_executable(gtest_runner
-    test/gtest_basic.cpp
-    test/gtest_complex.cpp
-    test/gtest_performance.cpp
+    test/b_plus_basic.cpp
+    test/b_plus_complex.cpp
+    test/b_plus_performance.cpp
+    test/b_plus_concurrent.cpp
 )
 
 target_include_directories(gtest_runner PRIVATE

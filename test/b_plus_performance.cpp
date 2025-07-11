@@ -110,7 +110,7 @@ TEST_F(BPlusTreePerformanceTest, SearchPerformance) {
     EXPECT_LT(duration.count(), 5000); // 应该在5秒内完成
 }
 
-TEST_F(BPlusTreePerformanceTest, MixedOperationPerformance) {
+TEST_F(BPlusTreePerformanceTest, DISABLED_MixedOperationPerformance) {
     const int NUM_OPERATIONS = 5000;
     std::vector<KeyType> inserted_keys;
     

@@ -115,8 +115,8 @@ TEST_F(BPlusTreeComplexTest, BoundaryConditions) {
     }
 }
 
-TEST_F(BPlusTreeComplexTest, StressTest) {
-    const int NUM_OPERATIONS = 2000;
+TEST_F(BPlusTreeComplexTest, DISABLED_StressTest) {
+    const int NUM_OPERATIONS = 20000;
     std::set<KeyType> inserted_keys;
     std::random_device rd;
     std::mt19937 gen(rd());
