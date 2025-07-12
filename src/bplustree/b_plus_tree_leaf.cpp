@@ -25,8 +25,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::SetAt(int index, const KeyType &key,
-                                       const ValueType &value) {
+void B_PLUS_TREE_LEAF_PAGE_TYPE::SetAt(int index, const KeyType &key, const ValueType &value) {
   array_[index] = MappingType{key, value};
 }
 
@@ -45,18 +44,14 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::ValueAt(int index) const -> ValueType {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key,
-                                        const ValueType &value,
-                                        const KeyComparator &comparator)
-    -> bool {
-  auto compare_first = [&comparator](const MappingType &lhs,
-                                     const KeyType &key) -> bool {
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value,
+                                        const KeyComparator &comparator) -> bool {
+  auto compare_first = [&comparator](const MappingType &lhs, const KeyType &key) -> bool {
     return comparator(lhs.first, key) < 0;
   };
   // auto it = std::lower_bound(array_, array_ + GetSize(), key, compare_first);
   int size = GetSize();
-  auto it = std::lower_bound(array_.begin(), array_.begin() + size, key,
-                             compare_first);
+  auto it = std::lower_bound(array_.begin(), array_.begin() + size, key, compare_first);
 
   int index = std::distance(array_.begin(), it);
   if (index < size && comparator(array_[index].first, key) == 0) {
@@ -65,8 +60,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key,
 
   // BUSTUB_ASSERT(size < GetMaxSize(), "The Leaf page is full.");
 
-  std::move_backward(array_.begin() + index, array_.begin() + size,
-                     array_.begin() + size + 1);
+  std::move_backward(array_.begin() + index, array_.begin() + size, array_.begin() + size + 1);
   array_[index] = MappingType{key, value};
 
   IncreaseSize(1);
@@ -75,29 +69,27 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key,
 
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::FindValue(const KeyType &key, const KeyComparator &comparator,
-                                         ValueType &value, int *key_index) const -> bool {
+                                           ValueType &value, int *key_index) const -> bool {
   int size = GetSize();
-  auto compare_first = [&comparator](const MappingType &lhs,
-                                  const KeyType &rhs) -> bool {
+  auto compare_first = [&comparator](const MappingType &lhs, const KeyType &rhs) -> bool {
     return comparator(lhs.first, rhs) < 0;
   };
-  auto it = std::lower_bound(array_.begin(), array_.begin() + size, key,
-                             compare_first);
+  auto it = std::lower_bound(array_.begin(), array_.begin() + size, key, compare_first);
 
   if (it == array_.begin() + size) {
-    return false; // 没有找到，或者key比所有元素都大
+    return false;  // 没有找到，或者key比所有元素都大
   }
 
   // 检查找到的键是否和目标键相等
   if (comparator(it->first, key) == 0) {
-    value = it->second; // 找到了，返回值
+    value = it->second;  // 找到了，返回值
     if (key_index != nullptr) {
       *key_index = std::distance(array_.begin(), it);
     }
     return true;
   }
 
-  return false; // 没找到完全匹配的键
+  return false;  // 没找到完全匹配的键
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -115,8 +107,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Delete(int child_page_index) -> bool {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyHalfFrom(MappingType *array, int min_size,
-                                              int size) {
+void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyHalfFrom(MappingType *array, int min_size, int size) {
   std::copy(array + min_size, array + size, array_.begin());
   SetSize(size - min_size);
 }

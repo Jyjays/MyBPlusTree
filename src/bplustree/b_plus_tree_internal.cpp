@@ -6,7 +6,7 @@
 namespace mybplus {
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) -> void{
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) -> void {
   SetMaxSize(max_size);
   // allcocate memory for array_, but can's use new to allocate memory
   // array_ = new MappingType[max_size];
@@ -21,10 +21,8 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) -> void{
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::PopulateNewRoot(page_id_t page_id_one,
-                                                     const KeyType &key,
-                                                     page_id_t page_id_two)
-    -> void {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::PopulateNewRoot(page_id_t page_id_one, const KeyType &key,
+                                                     page_id_t page_id_two) -> void {
   array_[0] = MappingType{KeyType(), page_id_one};
   array_[1] = MappingType{key, page_id_two};
   SetSize(2);
@@ -41,15 +39,12 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const -> KeyType {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key)
-    -> void {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) -> void {
   array_[index].first = key;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index,
-                                                const ValueType &value)
-    -> void {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetValueAt(int index, const ValueType &value) -> void {
   array_[index].second = value;
 }
 
@@ -59,19 +54,18 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindValue(const KeyType &key,
-                                               const KeyComparator &comparator,
-                                               int *child_page_index) const
-    -> ValueType {
-  int size = GetSize();
-  auto compare_first = [&comparator](const KeyType &lhs_key,
-                                     const MappingType &rhs) -> bool {
-    return comparator(lhs_key, rhs.first) < 0;
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindValue(const KeyType &key, const KeyComparator &comparator,
+                                               int *child_page_index) const -> ValueType {
+  auto compare_first = [comparator](const MappingType &lhs, KeyType rhs) -> bool {
+    // Traverse the key until the first key that is bigger than the input key
+    return comparator(lhs.first, rhs) <= 0;
   };
+  // NOTE - the first key is a dummy key, so we start from the second key
+  // lower_bound returns the first element that is not less than key
+  auto res = std::lower_bound(array_.begin() + 1, array_.begin() + GetSize(), key, compare_first);
 
-  auto it = std::upper_bound(array_.begin() + 1, array_.begin() + size, key,
-                             compare_first);
-  auto res = std::prev(it);
+  // Then we need to move back one step to get the the first element that is less than key
+  res = std::prev(res);
 
   if (child_page_index != nullptr) {
     *child_page_index = std::distance(array_.begin(), res);
@@ -80,21 +74,17 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindValue(const KeyType &key,
   return res->second;
 }
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(const KeyType &key,
-                                            const ValueType &value,
-                                            const KeyComparator &comparator)
-    -> bool {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value,
+                                            const KeyComparator &comparator) -> bool {
   int size = GetSize();
-  auto compare_first = [&comparator](const MappingType &lhs,
-                                     const KeyType &rhs_key) -> bool {
+  auto compare_first = [&comparator](const MappingType &lhs, const KeyType &rhs_key) -> bool {
     return comparator(lhs.first, rhs_key) < 0;
   };
-  auto it = std::lower_bound(array_.begin(), array_.begin() + GetSize(), key,
-                             compare_first);
+  auto it = std::lower_bound(array_.begin() + 1, array_.begin() + GetSize(), key, compare_first);
   int index = std::distance(array_.begin(), it);
 
   if (index < GetSize() && comparator(array_[index].first, key) == 0) {
-    return false;  // 键重复
+    return false;
   }
 
   array_.insert(array_.begin() + index, MappingType{key, value});
@@ -117,8 +107,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Delete(int child_page_index) -> bool {
   return true;
 }
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const
-    -> int {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const -> int {
   for (int i = 0; i < GetSize(); i++) {
     if (array_[i].second == value) {
       return i;

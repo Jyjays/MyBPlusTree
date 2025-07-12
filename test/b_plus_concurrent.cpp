@@ -6,10 +6,10 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <numeric>
-#include <iomanip>
 #include <random>
 #include <string>
 #include <thread>
@@ -54,21 +54,16 @@ void KeyToValue(KeyType key, ValueType &value) {
   std::strncpy(value.data(), str.c_str(), value.size() - 1);
 }
 
-// ==================================================================================
-// 考核要求 2 & 5: 大量数据并发稳定测试
-// ==================================================================================
-
 class BPlusTreeConcurrentTest : public ::testing::Test {
  protected:
-  const size_t scale_factor_ = 2000;  // 20万，并发测试下规模可以适当减小
-  const int num_threads_ = 4;           // 定义测试使用的线程数
+  const size_t scale_factor_ = 2000;
+  const int num_threads_ = 4;
   KeyComparator comparator_;
   std::unique_ptr<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>> tree_;
 
   void SetUp() override {
-    tree_ =
-        std::make_unique<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>>(
-            "ConcurrentTestTree", comparator_, 128, 128);
+    tree_ = std::make_unique<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>>(
+        "ConcurrentTestTree", comparator_, 128, 128);
   }
 };
 
@@ -86,9 +81,8 @@ TEST_F(BPlusTreeConcurrentTest, ConcurrentSequentialInsertAndVerify) {
     }
   };
 
-  std::cout << "\n[CONCURRENT TEST] Inserting " << scale_factor_
-            << " sequential keys using " << num_threads_ << " threads..."
-            << std::endl;
+  std::cout << "\n[CONCURRENT TEST] Inserting " << scale_factor_ << " sequential keys using "
+            << num_threads_ << " threads..." << std::endl;
   LaunchThreads(num_threads_, insert_task);
   std::cout << "[CONCURRENT TEST] Insertion complete." << std::endl;
 
@@ -104,8 +98,7 @@ TEST_F(BPlusTreeConcurrentTest, ConcurrentSequentialInsertAndVerify) {
   std::cout << "[CONCURRENT TEST] Verification complete." << std::endl;
 }
 
-// 测试2：大规模并发随机插入与删除
-TEST_F(BPlusTreeConcurrentTest, DISABLED_MixedConcurrentReadWrite) {
+TEST_F(BPlusTreeConcurrentTest, MixedConcurrentReadWrite) {
   // 1. 先串行插入一批基础数据
   size_t initial_keys_count = scale_factor_ / 2;
   std::vector<KeyType> initial_keys = GenerateRandomKeys(initial_keys_count);
@@ -141,17 +134,19 @@ TEST_F(BPlusTreeConcurrentTest, DISABLED_MixedConcurrentReadWrite) {
     for (size_t i = thread_id; i < delete_keys.size(); i += num_threads_ / 2) {
       tree_->Remove(delete_keys[i]);
     }
-    // std::cout << "[Thread " << thread_id
-    //           << "] Deleted keys up to: " << delete_keys.size() << std::endl;
   };
 
   // 3. 并发执行插入和删除
-  std::cout << "\n[CONCURRENT TEST] Starting mixed insert/delete operations..."
-            << std::endl;
+  std::cout << "\n[CONCURRENT TEST] Starting mixed insert/delete operations..." << std::endl;
   std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads_ / 2; ++i) {
-    threads.emplace_back(insert_task, i);
-    threads.emplace_back(delete_task, i);
+  if (num_threads_ > 2) {
+    for (int i = 0; i < num_threads_ / 2; ++i) {
+      threads.emplace_back(insert_task, i);
+      threads.emplace_back(delete_task, i);
+    }
+  } else {
+    threads.emplace_back(insert_task, 0);
+    threads.emplace_back(delete_task, 0);
   }
   for (auto &thread : threads) {
     thread.join();
@@ -171,17 +166,12 @@ TEST_F(BPlusTreeConcurrentTest, DISABLED_MixedConcurrentReadWrite) {
     std::vector<ValueType> result_values;
     ASSERT_TRUE(tree_->GetValue(key, &result_values));
   }
-  std::cout << "[CONCURRENT TEST] Final state verification complete."
-            << std::endl;
+  std::cout << "[CONCURRENT TEST] Final state verification complete." << std::endl;
 }
-
-// ==================================================================================
-// 考核要求 3 & 5: B+树阶数并发性能测试
-// ==================================================================================
 
 class BPlusTreeConcurrentOrderTest : public ::testing::Test {
  protected:
-  const size_t scale_factor_ = 1000000;  // 1 million
+  const size_t scale_factor_ = 10000000;
   const int num_threads_ = 8;
   KeyComparator comparator_;
   std::vector<KeyType> keys_;
@@ -192,24 +182,18 @@ class BPlusTreeConcurrentOrderTest : public ::testing::Test {
 TEST_F(BPlusTreeConcurrentOrderTest, ConcurrentPerformanceComparison) {
   std::vector<int> orders_to_test = {32, 64, 128, 256, 512};
 
-  std::cout << "\n\n--- B+Tree Concurrent Performance Comparison ---"
+  std::cout << "\n\n--- B+Tree Concurrent Performance Comparison ---" << std::endl;
+  std::cout << "Dataset size: " << scale_factor_ << " random keys, Threads: " << num_threads_
             << std::endl;
-  std::cout << "Dataset size: " << scale_factor_
-            << " random keys, Threads: " << num_threads_ << std::endl;
-  std::cout
-      << "--------------------------------------------------------------------"
-      << std::endl;
+  std::cout << "--------------------------------------------------------------------" << std::endl;
   std::cout << "| Order (Max Size) | Concurrent Insert (ms) | Concurrent "
                "Lookup (ms) |"
             << std::endl;
-  std::cout
-      << "--------------------------------------------------------------------"
-      << std::endl;
+  std::cout << "--------------------------------------------------------------------" << std::endl;
 
   for (int order : orders_to_test) {
-    auto tree =
-        std::make_unique<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>>(
-            "PerfTestTree", comparator_, order, order);
+    auto tree = std::make_unique<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>>(
+        "PerfTestTree", comparator_, order, order);
 
     // 1. 测试并发插入性能
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -222,36 +206,28 @@ TEST_F(BPlusTreeConcurrentOrderTest, ConcurrentPerformanceComparison) {
     });
     auto end_time = std::chrono::high_resolution_clock::now();
     auto insert_duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end_time -
-                                                              start_time)
-            .count();
+        std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
     // 2. 测试并发查找性能
-    size_t lookup_count_per_thread = 10000;
+    size_t lookup_count_per_thread = 1000000;
     start_time = std::chrono::high_resolution_clock::now();
     LaunchThreads(num_threads_, [&](int thread_id) {
       for (size_t i = 0; i < lookup_count_per_thread; ++i) {
         std::vector<ValueType> result_values;
         // 每个线程查找不同的键，避免缓存效应过于理想化
-        size_t key_index =
-            (thread_id * lookup_count_per_thread + i) % keys_.size();
+        size_t key_index = (thread_id * lookup_count_per_thread + i) % keys_.size();
         tree->GetValue(keys_[key_index], &result_values);
       }
     });
     end_time = std::chrono::high_resolution_clock::now();
     auto lookup_duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end_time -
-                                                              start_time)
-            .count();
+        std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
     // 3. 打印结果
-    std::cout << "| " << std::setw(16) << std::left << order << "| "
-              << std::setw(22) << std::left << insert_duration << "| "
-              << std::setw(22) << std::left << lookup_duration << "|"
+    std::cout << "| " << std::setw(16) << std::left << order << "| " << std::setw(22) << std::left
+              << insert_duration << "| " << std::setw(22) << std::left << lookup_duration << "|"
               << std::endl;
   }
-  std::cout
-      << "--------------------------------------------------------------------"
-      << std::endl;
+  std::cout << "--------------------------------------------------------------------" << std::endl;
 }
 }  // namespace mybplus

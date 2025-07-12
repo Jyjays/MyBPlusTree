@@ -19,8 +19,7 @@ namespace mybplus {
   (sizeof(int32_t) + sizeof(int) + sizeof(IndexPageType) + sizeof(int32_t) + \
    sizeof(std::shared_mutex))
 #else
-#define PAGE_HEADER_SIZE \
-  (sizeof(int32_t) + sizeof(int) + sizeof(IndexPageType) + sizeof(int32_t))
+#define PAGE_HEADER_SIZE (sizeof(int32_t) + sizeof(int) + sizeof(IndexPageType) + sizeof(int32_t))
 #endif
 // define page type enum
 enum class IndexPageType { INVALID_INDEX_PAGE = 0, LEAF_PAGE, INTERNAL_PAGE };

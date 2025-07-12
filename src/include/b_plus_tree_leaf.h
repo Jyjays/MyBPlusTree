@@ -9,14 +9,11 @@
 
 namespace mybplus {
 
-#define B_PLUS_TREE_LEAF_PAGE_TYPE \
-  BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>
+#define B_PLUS_TREE_LEAF_PAGE_TYPE BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>
 
-#define LEAF_PAGE_HEADER_SIZE \
-  PAGE_HEADER_SIZE + sizeof(page_id_t) + sizeof(int32_t)
+#define LEAF_PAGE_HEADER_SIZE PAGE_HEADER_SIZE + sizeof(page_id_t) + sizeof(int32_t)
 
-#define LEAF_PAGE_SIZE \
-  ((PAGE_SIZE - sizeof(int32_t) - sizeof(int)) / (sizeof(MappingType)))
+#define LEAF_PAGE_SIZE ((PAGE_SIZE - sizeof(int32_t) - sizeof(int)) / (sizeof(MappingType)))
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTreeLeafPage : public BPlusTreePage {
  public:
@@ -33,16 +30,14 @@ class BPlusTreeLeafPage : public BPlusTreePage {
 
   void SetAt(int index, const KeyType &key, const ValueType &value);
 
-  auto FindValue(const KeyType &key, const KeyComparator &comparator,
-                 ValueType &value, int *child_page_index) const -> bool;
+  auto FindValue(const KeyType &key, const KeyComparator &comparator, ValueType &value,
+                 int *child_page_index) const -> bool;
 
   auto GetData() -> MappingType * { return array_.data(); }
 
   void CopyHalfFrom(MappingType *array, int min_size, int size);
 
-
-  auto Insert(const KeyType &key, const ValueType &value,
-              const KeyComparator &comparator) -> bool;
+  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
 
   auto Delete(int child_page_index) -> bool;
 

@@ -26,7 +26,8 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   auto ValueAt(int index) const -> ValueType;
 
-  auto FindValue(const KeyType &key, const KeyComparator &comparator, int *child_page_index) const -> ValueType;
+  auto FindValue(const KeyType &key, const KeyComparator &comparator, int *child_page_index) const
+      -> ValueType;
 
   auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
 
@@ -43,7 +44,6 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void CopyHalfFrom(MappingType *array, int min_size, int size) {
     // TODO: Copy half of the array to this page
     std::copy(array + min_size, array + size, array_.begin());
-    SetSize(size - min_size);
   }
 
   void MergeFrom(MappingType *array, int size) {

@@ -13,7 +13,7 @@
 
 #include "b_plus_tree_internal.h"
 #include "b_plus_tree_leaf.h"
-#include "config.h" 
+#include "config.h"
 
 namespace mybplus {
 
@@ -65,8 +65,7 @@ class Context {
 #endif
   }
 
-  auto CheckAndReleaseAncestors(BPlusTreePage *current_page, OperationType op)
-      -> void {
+  auto CheckAndReleaseAncestors(BPlusTreePage *current_page, OperationType op) -> void {
 #ifdef USING_CRABBING_PROTOCOL
     if (current_page->IsSafe(op)) {
       // 释放除当前页面外的所有祖先锁
@@ -166,7 +165,6 @@ class Context {
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTreeSerializer;
 
-
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTree {
   friend class BPlusTreeSerializer<KeyType, ValueType, KeyComparator>;
@@ -184,20 +182,18 @@ class BPlusTree {
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value) -> bool;
 
-  auto InsertIntoParent(BPlusTreePage *old_node, const KeyType &key,
-                        BPlusTreePage *new_node, Context *ctx) -> void;
+  auto InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
+                        Context *ctx) -> bool;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key);
 
-  auto RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key, Context *ctx)
-      -> void;
+  auto RemoveLeafEntry(LeafPage *leaf_page, const KeyType &key, Context *ctx) -> void;
 
-  auto RemoveInternalEntry(InternalPage *internal_page, const KeyType &key,
-                           Context *ctx) -> void;
+  auto RemoveInternalEntry(InternalPage *internal_page, const KeyType &key, Context *ctx) -> void;
 
-  auto LeafCanMerge(LeafPage *merge_page, LeafPage *left_leaf,
-                    LeafPage *right_leaf) -> std::pair<bool, bool>;
+  auto LeafCanMerge(LeafPage *merge_page, LeafPage *left_leaf, LeafPage *right_leaf)
+      -> std::pair<bool, bool>;
 
   auto InternalCanMerge(InternalPage *merge_page, InternalPage *left_internal,
                         InternalPage *right_internal) -> std::pair<bool, bool>;
@@ -219,14 +215,10 @@ class BPlusTree {
     std::shared_lock<std::shared_mutex> lock(mutex_);
     return pages_.size();
   }
-  auto SetLeafMaxSize(int size) -> void {
-    leaf_max_size_ = size;
-  }
-  auto SetInternalMaxSize(int size) -> void {
-    internal_max_size_ = size;
-  }
+  auto SetLeafMaxSize(int size) -> void { leaf_max_size_ = size; }
+  auto SetInternalMaxSize(int size) -> void { internal_max_size_ = size; }
   auto SetRootPageId(int32_t page_id) -> void {
-    std::lock_guard<std::mutex> lock(root_mutex_);
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     root_page_id_ = page_id;
   }
 
@@ -237,15 +229,14 @@ class BPlusTree {
   auto NewInternalPage(int32_t *new_page_id) -> InternalPage *;
   auto DeletePage(page_id_t page_id) -> void;
 
-  auto SplitLeafPage(LeafPage *leaf_page, LeafPage *new_page,
-                     const KeyType &key, const ValueType &value,
-                     int32_t new_page_id) -> KeyType;
+  auto SplitLeafPage(LeafPage *leaf_page, LeafPage *new_page, const KeyType &key,
+                     const ValueType &value, int32_t new_page_id) -> KeyType;
 
   /**
    * @return The key that should be inserted into the parent page.
    */
-  auto SplitInternalPage(InternalPage *internal_page, InternalPage *new_page,
-                         const KeyType &key, int32_t new_page_id) -> KeyType;
+  auto SplitInternalPage(InternalPage *internal_page, InternalPage *new_page, const KeyType &key,
+                         int32_t new_page_id) -> KeyType;
 
   // member variable
   std::string index_name_;
@@ -261,7 +252,6 @@ class BPlusTree {
   std::unordered_map<page_id_t, BPlusTreePage *> pages_;
   page_id_t next_page_id_ = 1;
 
-  std::mutex root_mutex_;
   int32_t root_page_id_ = INVALID_PAGE_ID;
 };
 

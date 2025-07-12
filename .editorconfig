@@ -1,0 +1,41 @@
+# EditorConfig 是跨编辑器和IDE维持一致编码风格的工具
+# http://editorconfig.org
+
+root = true
+
+# 所有文件
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# C/C++ 文件
+[*.{c,cpp,cc,cxx,h,hpp,hxx}]
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+# CMake 文件
+[CMakeLists.txt,*.cmake]
+indent_style = space
+indent_size = 4
+
+# JSON 文件
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Markdown 文件
+[*.md]
+trim_trailing_whitespace = false
+
+# Python 文件（如果有）
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Shell 脚本
+[*.sh]
+indent_style = space
+indent_size = 2
