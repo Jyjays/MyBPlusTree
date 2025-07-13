@@ -110,13 +110,13 @@ TEST_F(BPlusTreeDeleteTest, SimpleDelete) {
 }
 
 TEST_F(BPlusTreeDeleteTest, DeleteCauseRedistribution) {
-  auto keys = GenerateRandomKeys(100);
+  auto keys = GenerateRandomKeys(1000);
 
-  // std::ofstream outfile("/home/jyjays/LAB/MyBPlusTree/test/delete_output.txt");
-  // if (!outfile.is_open()) {
-  //   std::cerr << "无法打开文件 output.txt" << std::endl;
-  //   return;
-  // }
+  std::ofstream outfile("/home/jyjays/LAB/MyBPlusTree/test/delete_output.txt");
+  if (!outfile.is_open()) {
+    std::cerr << "无法打开文件 output.txt" << std::endl;
+    return;
+  }
 
   std::cout << "[SETUP] Inserting " << keys.size() << "unique keys... " << std::endl;
   for (const auto &key : keys) {
@@ -124,12 +124,12 @@ TEST_F(BPlusTreeDeleteTest, DeleteCauseRedistribution) {
     KeyToValue(key, v);
     tree->Insert(key, v);
   }
-  // outfile << "[SETUP] Inserting " << keys.size() << " unique keys..." << std::endl;
-  // try {
-  //   outfile << tree.get()->DrawBPlusTree() << std::endl;
-  // } catch (const std::exception &e) {
-  //   outfile << "[ERROR] DrawBPlusTree failed: " << e.what() << std::endl;
-  // }
+  outfile << "[SETUP] Inserting " << keys.size() << " unique keys..." << std::endl;
+  try {
+    outfile << tree.get()->DrawBPlusTree() << std::endl;
+  } catch (const std::exception &e) {
+    outfile << "[ERROR] DrawBPlusTree failed: " << e.what() << std::endl;
+  }
 
   // 验证初始插入
   std::cout << "[SETUP] Verifying initial insertion..." << std::endl;
@@ -145,12 +145,12 @@ TEST_F(BPlusTreeDeleteTest, DeleteCauseRedistribution) {
       keys_to_delete.push_back(keys[i]);
       tree->Remove(keys[i]);
       // std::cout << "[DELETE] Deleted key: " << keys[i] << std::endl;
-      // outfile << "[DELETE] Deleted key: " << keys[i] << std::endl;
-      // try {
-      //   outfile << tree.get()->DrawBPlusTree() << std::endl;
-      // } catch (const std::exception &e) {
-      //   outfile << "[ERROR] DrawBPlusTree failed: " << e.what() << std::endl;
-      // }
+      outfile << "[DELETE] Deleted key: " << keys[i] << std::endl;
+      try {
+        outfile << tree.get()->DrawBPlusTree() << std::endl;
+      } catch (const std::exception &e) {
+        outfile << "[ERROR] DrawBPlusTree failed: " << e.what() << std::endl;
+      }
     }
   }
   // 验证删除
@@ -171,7 +171,7 @@ TEST_F(BPlusTreeDeleteTest, DeleteCauseRedistribution) {
 
 class BPlusTreeConcurrentDeleteTest : public ::testing::Test {
  protected:
-  const size_t scale_factor_ = 48000;  // 10万
+  const size_t scale_factor_ = 48000;
   const int num_threads_ = 8;
   KeyComparator comparator_;
   std::unique_ptr<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>> tree_;
@@ -180,11 +180,11 @@ class BPlusTreeConcurrentDeleteTest : public ::testing::Test {
 TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
   tree_ = std::make_unique<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>>(
       "ConcurrentDeleteVerifyTree", comparator_, 5, 5);
-  // std::ofstream outfile("/home/jyjays/LAB/MyBPlusTree/test/delete_output2.txt");
-  // if (!outfile.is_open()) {
-  //   std::cerr << "无法打开文件 output2.txt" << std::endl;
-  //   return;
-  // }
+  std::ofstream outfile("/home/jyjays/LAB/MyBPlusTree/test/delete_output2.txt");
+  if (!outfile.is_open()) {
+    std::cerr << "无法打开文件 output2.txt" << std::endl;
+    return;
+  }
 
   // 1. 生成唯一键并插入
   std::vector<KeyType> all_keys = GenerateUniqueKeys(scale_factor_);  // 确保唯一性
@@ -195,8 +195,8 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
     KeyToValue(key, v);
     tree_->Insert(key, v);
   }
-  // outfile << "[SETUP] Inserting " << all_keys.size() << " unique keys..." << std::endl;
-  // outfile << tree_.get()->DrawBPlusTree() << std::endl;
+  outfile << "[SETUP] Inserting " << all_keys.size() << " unique keys..." << std::endl;
+  outfile << tree_.get()->DrawBPlusTree() << std::endl;
   // 验证初始插入
   std::cout << "[SETUP] Verifying initial insertion..." << std::endl;
   for (const auto &key : all_keys) {
@@ -232,9 +232,9 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
     try {
       for (size_t i = thread_id; i < keys_to_delete.size(); i += num_threads_) {
         tree_->Remove(keys_to_delete[i]);
-        // outfile << "[DELETE] Thread " << thread_id << " deleted key: " << keys_to_delete[i]
-        //         << std::endl;
-        // outfile << tree_.get()->DrawBPlusTree() << std::endl;
+        outfile << "[DELETE] Thread " << thread_id << " deleted key: " << keys_to_delete[i]
+                << std::endl;
+        outfile << tree_.get()->DrawBPlusTree() << std::endl;
         local_deletions++;
       }
     } catch (const std::exception &e) {

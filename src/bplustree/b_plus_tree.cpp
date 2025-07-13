@@ -89,7 +89,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
 #ifdef USING_CRABBING_PROTOCOL
 
 #else
-  std::shared_lock<std::shared_mutex> lock(mutex_);
+  std::unique_lock<std::shared_mutex> lock(mutex_);
 #endif
   Context ctx(mutex_);
   ctx.RLockRoot();
