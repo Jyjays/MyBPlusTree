@@ -31,6 +31,14 @@ class BPlusTreeInternalPage : public BPlusTreePage {
 
   auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
 
+  /**
+   * @param key The new key point to the original first child page.
+   * @param value The new page id of the first child page.
+   * This method will move the original first child page to the second position,
+   * and insert the new key-value pair at the first position.
+   */
+  auto InsertFirst(const KeyType &key, const ValueType &value) -> bool;
+
   auto Delete(int child_page_index) -> bool;
 
   auto PopulateNewRoot(page_id_t page_id_one, const KeyType &key, page_id_t page_id_two) -> void;

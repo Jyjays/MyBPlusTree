@@ -60,8 +60,10 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &val
 
   // BUSTUB_ASSERT(size < GetMaxSize(), "The Leaf page is full.");
 
-  std::move_backward(array_.begin() + index, array_.begin() + size, array_.begin() + size + 1);
-  array_[index] = MappingType{key, value};
+  // std::move_backward(array_.begin() + index, array_.begin() + size, array_.begin() + size + 1);
+  // array_[index] = MappingType{key, value};
+  // 2. 【修正】使用 vector::insert，安全且自动管理内存和大小
+  array_.insert(array_.begin() + index, MappingType{key, value});
 
   IncreaseSize(1);
   return true;
@@ -93,15 +95,22 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::FindValue(const KeyType &key, const KeyComparat
 }
 
 INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::InsertFirst(const KeyType &key, const ValueType &value) -> bool {
+  if (GetSize() >= GetMaxSize()) {
+    return false;
+  }
+  array_.insert(array_.begin(), MappingType{key, value});
+  IncreaseSize(1);
+  return true;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::Delete(int child_page_index) -> bool {
   if (child_page_index < 0 || child_page_index >= GetSize()) {
     return false;
   }
+  array_.erase(array_.begin() + child_page_index);
 
-  // std::move(array_ + child_page_index + 1, array_ + GetSize(), array_ +
-  // child_page_index);
-  std::move(array_.begin() + child_page_index + 1, array_.begin() + GetSize(),
-            array_.begin() + child_page_index);
   IncreaseSize(-1);
   return true;
 }

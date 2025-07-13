@@ -48,15 +48,15 @@ add_executable(gtest_runner
 )
 
 target_include_directories(gtest_runner PRIVATE
-    "src/include"                                             
-    "${CMAKE_CURRENT_BINARY_DIR}/third_party/googletest/include" 
+    "src/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/third_party/googletest/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest/include"
 )
 
 target_link_libraries(gtest_runner PRIVATE
-    mybplustree 
-    gtest       
-    gtest_main  
+    mybplustree
+    gtest
+    gtest_main
 )
 
 include(GoogleTest)
@@ -76,3 +76,16 @@ target_include_directories(
 )
 
 target_link_libraries(test_serializer PRIVATE mybplustree gtest gtest_main)
+
+# remove
+
+add_executable(test_remove test/b_plus_remove.cpp)
+
+target_include_directories(
+    test_remove PRIVATE
+    "src/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/third_party/googletest/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest/include"
+)
+
+target_link_libraries(test_remove PRIVATE mybplustree gtest gtest_main)

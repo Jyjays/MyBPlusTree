@@ -29,14 +29,13 @@ enum class OperationType { FIND = 0, INSERT, DELETE };
 
 class BPlusTreePage {
  public:
-  virtual ~BPlusTreePage() = default;
-
   auto IsLeafPage() const -> bool;
   void SetPageType(IndexPageType page_type);
 
   auto GetSize() const -> int;
-  void SetSize(int size);
-  void IncreaseSize(int amount);
+  virtual void SetSize(int size);
+
+  virtual void IncreaseSize(int amount);
 
   auto GetMaxSize() const -> int;
   void SetMaxSize(int max_size);

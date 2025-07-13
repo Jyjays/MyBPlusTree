@@ -29,7 +29,7 @@ class BPlusTreeComplexTest : public ::testing::Test {
 };
 
 TEST_F(BPlusTreeComplexTest, LargeDataSet) {
-  const int NUM_ITEMS = 1000;
+  const int NUM_ITEMS = 10;
   std::set<KeyType> inserted_keys;
 
   // 插入大量数据

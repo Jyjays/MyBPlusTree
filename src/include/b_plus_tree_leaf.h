@@ -19,6 +19,15 @@ class BPlusTreeLeafPage : public BPlusTreePage {
  public:
   void Init(int max_size = LEAF_PAGE_SIZE);
 
+  // void SetSize(int size) override {
+  //   BPlusTreePage::SetSize(size);
+  //   array_.resize(size);
+  // }
+
+  // void IncreaseSize(int amount) override {
+  //   BPlusTreePage::IncreaseSize(amount);
+  //   array_.resize(GetSize());
+  // }
   // Helper methods
   auto GetNextPageId() const -> page_id_t;
 
@@ -38,6 +47,8 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void CopyHalfFrom(MappingType *array, int min_size, int size);
 
   auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
+
+  auto InsertFirst(const KeyType &key, const ValueType &value) -> bool;
 
   auto Delete(int child_page_index) -> bool;
 

@@ -86,10 +86,28 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(const KeyType &key, const ValueType 
   if (index < GetSize() && comparator(array_[index].first, key) == 0) {
     return false;
   }
-
+  // std::move_backward(array_.begin() + index, array_.begin() + size, array_.begin() + size + 1);
+  // array_[index] = MappingType{key, value};
+  // IncreaseSize(1);
+  // 2. 【修正】使用 vector::insert，安全且自动管理内存和大小
   array_.insert(array_.begin() + index, MappingType{key, value});
+
   IncreaseSize(1);
 
+  return true;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertFirst(const KeyType &key, const ValueType &value)
+    -> bool {
+  if (GetSize() >= GetMaxSize()) {
+    return false;
+  }
+  array_.insert(array_.begin() + 1, MappingType{key, array_[0].second});
+
+  // 然后更新索引0处的指针为从兄弟节点借来的新指针
+  array_[0].second = value;
+  IncreaseSize(1);
   return true;
 }
 
@@ -99,10 +117,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Delete(int child_page_index) -> bool {
   if (child_page_index < 0 || child_page_index >= size) {
     return false;
   }
-  // std::move(array_ + child_page_index + 1, array_ + size, array_ +
-  // child_page_index);
-  std::move(array_.begin() + child_page_index + 1, array_.begin() + GetSize(),
-            array_.begin() + child_page_index);
+  array_.erase(array_.begin() + child_page_index);
   IncreaseSize(-1);
   return true;
 }
