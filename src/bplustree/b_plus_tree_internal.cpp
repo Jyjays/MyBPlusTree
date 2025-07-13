@@ -57,11 +57,9 @@ INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::FindValue(const KeyType &key, const KeyComparator &comparator,
                                                int *child_page_index) const -> ValueType {
   auto compare_first = [comparator](const MappingType &lhs, KeyType rhs) -> bool {
-    // Traverse the key until the first key that is bigger than the input key
     return comparator(lhs.first, rhs) <= 0;
   };
   // NOTE - the first key is a dummy key, so we start from the second key
-  // lower_bound returns the first element that is not less than key
   auto res = std::lower_bound(array_.begin() + 1, array_.begin() + GetSize(), key, compare_first);
 
   // Then we need to move back one step to get the the first element that is less than key

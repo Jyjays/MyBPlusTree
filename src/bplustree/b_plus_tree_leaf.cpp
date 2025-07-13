@@ -58,11 +58,6 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &val
     return false;  // 键重复
   }
 
-  // BUSTUB_ASSERT(size < GetMaxSize(), "The Leaf page is full.");
-
-  // std::move_backward(array_.begin() + index, array_.begin() + size, array_.begin() + size + 1);
-  // array_[index] = MappingType{key, value};
-
   array_.insert(array_.begin() + index, MappingType{key, value});
 
   IncreaseSize(1);
@@ -87,7 +82,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::FindValue(const KeyType &key, const KeyComparat
 
   // 检查找到的键是否和目标键相等
   if (comparator(it->first, key) == 0) {
-    value = it->second;  // 找到了，返回值
+    value = it->second;
     if (key_index != nullptr) {
       *key_index = std::distance(array_.begin(), it);
     }

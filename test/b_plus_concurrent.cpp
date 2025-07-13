@@ -56,11 +56,12 @@ void KeyToValue(KeyType key, ValueType &value) {
 
 class BPlusTreeConcurrentOrderTest : public ::testing::Test {
  protected:
-  const size_t scale_factor_ = 1000000;
+  const size_t scale_factor_ = 1000000;  // 1 million
   const int num_threads_ = 8;
   KeyComparator comparator_;
   std::vector<KeyType> keys_;
 
+  // 在所有测试开始前准备好一份固定的随机数据
   void SetUp() override { keys_ = GenerateRandomKeys(scale_factor_); }
 };
 
@@ -71,8 +72,7 @@ TEST_F(BPlusTreeConcurrentOrderTest, ConcurrentPerformanceComparison) {
   std::cout << "Dataset size: " << scale_factor_ << " random keys, Threads: " << num_threads_
             << std::endl;
   std::cout << "--------------------------------------------------------------------" << std::endl;
-  std::cout << "| Order (Max Size) | Concurrent Insert (ms) | Concurrent "
-               "Lookup (ms) |"
+  std::cout << "| Order (Max Size) | Concurrent Insert (ms) | Concurrent Lookup (ms) |"
             << std::endl;
   std::cout << "--------------------------------------------------------------------" << std::endl;
 
@@ -80,7 +80,7 @@ TEST_F(BPlusTreeConcurrentOrderTest, ConcurrentPerformanceComparison) {
     auto tree = std::make_unique<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>>(
         "PerfTestTree", comparator_, order, order);
 
-    // 1. 测试并发插入性能
+    // 1. 测试并发插入性能 (总共 100万次 Insert)
     auto start_time = std::chrono::high_resolution_clock::now();
     LaunchThreads(num_threads_, [&](int thread_id) {
       for (size_t i = thread_id; i < keys_.size(); i += num_threads_) {
@@ -93,15 +93,19 @@ TEST_F(BPlusTreeConcurrentOrderTest, ConcurrentPerformanceComparison) {
     auto insert_duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
-    // 2. 测试并发查找性能
-    size_t lookup_count_per_thread = 1000000;
+    // 每个线程分摊一部分工作
+    size_t lookups_per_thread = keys_.size() / num_threads_;
+
     start_time = std::chrono::high_resolution_clock::now();
     LaunchThreads(num_threads_, [&](int thread_id) {
-      for (size_t i = 0; i < lookup_count_per_thread; ++i) {
+      // 计算每个线程负责查找的键的范围
+      size_t start_index = thread_id * lookups_per_thread;
+      size_t end_index =
+          (thread_id == num_threads_ - 1) ? keys_.size() : start_index + lookups_per_thread;
+
+      for (size_t i = start_index; i < end_index; ++i) {
         std::vector<ValueType> result_values;
-        // 每个线程查找不同的键，避免缓存效应过于理想化
-        size_t key_index = (thread_id * lookup_count_per_thread + i) % keys_.size();
-        tree->GetValue(keys_[key_index], &result_values);
+        tree->GetValue(keys_[i], &result_values);
       }
     });
     end_time = std::chrono::high_resolution_clock::now();

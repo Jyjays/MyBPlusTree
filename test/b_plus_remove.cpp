@@ -180,12 +180,6 @@ class BPlusTreeConcurrentDeleteTest : public ::testing::Test {
 TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
   tree_ = std::make_unique<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>>(
       "ConcurrentDeleteVerifyTree", comparator_, 5, 5);
-  std::ofstream outfile("/home/jyjays/LAB/MyBPlusTree/test/delete_output2.txt");
-  if (!outfile.is_open()) {
-    std::cerr << "无法打开文件 output2.txt" << std::endl;
-    return;
-  }
-
   // 1. 生成唯一键并插入
   std::vector<KeyType> all_keys = GenerateUniqueKeys(scale_factor_);  // 确保唯一性
   std::cout << "[SETUP] Inserting " << all_keys.size() << " unique keys..." << std::endl;
@@ -195,8 +189,6 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
     KeyToValue(key, v);
     tree_->Insert(key, v);
   }
-  outfile << "[SETUP] Inserting " << all_keys.size() << " unique keys..." << std::endl;
-  outfile << tree_.get()->DrawBPlusTree() << std::endl;
   // 验证初始插入
   std::cout << "[SETUP] Verifying initial insertion..." << std::endl;
   for (const auto &key : all_keys) {
@@ -232,9 +224,6 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
     try {
       for (size_t i = thread_id; i < keys_to_delete.size(); i += num_threads_) {
         tree_->Remove(keys_to_delete[i]);
-        outfile << "[DELETE] Thread " << thread_id << " deleted key: " << keys_to_delete[i]
-                << std::endl;
-        outfile << tree_.get()->DrawBPlusTree() << std::endl;
         local_deletions++;
       }
     } catch (const std::exception &e) {
@@ -273,8 +262,6 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
   std::cout << "[VERIFICATION] Verifying final state..." << std::endl;
 
   // a. 验证所有应该被删除的键确实不存在
-  // outfile << "[VERIFICATION] Verifying deleted keys..." << std::endl;
-  // outfile << tree_.get()->DrawBPlusTree() << std::endl;
 
   int deleted_verification_failures = 0;
   for (const auto &key : keys_to_delete) {
