@@ -54,9 +54,14 @@ class BPlusTreeInternalPage : public BPlusTreePage {
     std::copy(array + min_size, array + size, array_.begin());
   }
 
-  void MergeFrom(MappingType *array, int size) {
-    std::copy(array, array + size, array_.begin() + GetSize());
-    SetSize(GetSize() + size);
+  void MergeFrom(BPlusTreeInternalPage *removed_page, Comparator *comparator_) {
+    // array_.insert(array_.end(), removed_page->array_.begin() + 1,
+    //               removed_page->array_.begin() + removed_page->GetSize());
+
+    // SetSize(GetSize() + removed_page->GetSize() - 1);
+    for (int i = 1; i < removed_page->GetSize(); i++) {
+      Insert(removed_page->KeyAt(i), removed_page->ValueAt(i), *comparator_);
+    }
   }
 
  private:

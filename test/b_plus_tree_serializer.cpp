@@ -83,6 +83,7 @@ TEST_F(BPlusTreeComplexTest, RandomInsertOrder) {
     EXPECT_EQ(results.size(), 1);
 
     std::string expected = "value_" + std::to_string(key);
+    std::cout << "value for key " << key << ": " << results[0].data() << std::endl;
     EXPECT_STREQ(results[0].data(), expected.c_str());
   }
 

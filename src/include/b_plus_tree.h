@@ -32,7 +32,7 @@ class Context {
     }
   }
 
-  auto WLockRoot() -> void {
+  inline auto WLockRoot() -> void {
 #ifdef USING_CRABBING_PROTOCOL
     if (!is_root_wlocked_) {
       root_mutex_.lock();
@@ -40,7 +40,7 @@ class Context {
     }
 #endif
   }
-  auto RLockRoot() -> void {
+  inline auto RLockRoot() -> void {
 #ifdef USING_CRABBING_PROTOCOL
     if (!is_root_rlocked_) {
       root_mutex_.lock_shared();
@@ -48,7 +48,7 @@ class Context {
     }
 #endif
   }
-  auto WUnlockRoot() -> void {
+  inline auto WUnlockRoot() -> void {
 #ifdef USING_CRABBING_PROTOCOL
     if (is_root_wlocked_) {
       root_mutex_.unlock();
@@ -56,7 +56,7 @@ class Context {
     }
 #endif
   }
-  auto RUnlockRoot() -> void {
+  inline auto RUnlockRoot() -> void {
 #ifdef USING_CRABBING_PROTOCOL
     if (is_root_rlocked_) {
       root_mutex_.unlock_shared();
@@ -179,33 +179,14 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
-  // Insert a key-value pair into this B+ tree.
-  auto Insert(const KeyType &key, const ValueType &value) -> bool;
-
-  auto InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
-                        Context *ctx) -> bool;
-
-  // Remove a key and its value from this B+ tree.
-  void Remove(const KeyType &key);
-
-  auto RemoveLeafEntry(LeafPage *leaf_page, InternalPage *parent_page, const KeyType &key,
-                       Context *ctx) -> void;
-
-  auto RemoveInternalEntry(InternalPage *internal_page, InternalPage *parent_page,
-                           const KeyType &key, Context *ctx) -> void;
-  // auto RemoveLeafEntry(LeafPage *leaf_page, InternalPage *parent_page, const KeyType &key,
-  //                      int delete_index, Context *ctx) -> void;
-  // auto RemoveInternalEntry(InternalPage *internal_page, InternalPage *parent_page,
-  //                          const KeyType &key, int delete_index, Context *ctx) -> void;
-  auto LeafCanMerge(LeafPage *merge_page, LeafPage *left_leaf, LeafPage *right_leaf)
-      -> std::pair<bool, bool>;
-
-  auto InternalCanMerge(InternalPage *merge_page, InternalPage *left_internal,
-                        InternalPage *right_internal) -> std::pair<bool, bool>;
   // Return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result) -> bool;
 
-  auto CreateAndRegisterPage(page_id_t page_id, bool is_leaf) -> void;
+  // Insert a key-value pair into this B+ tree.
+  auto Insert(const KeyType &key, const ValueType &value) -> bool;
+
+  // Remove a key and its value from this B+ tree.
+  void Remove(const KeyType &key);
 
   auto Clear() -> void;
 
@@ -229,39 +210,7 @@ class BPlusTree {
   // Print the B+ tree
   void Print();
 
-  // Draw the B+ tree
-  void Draw(const std::string &outf);
-
-  /**
-   * @brief draw a B+ tree, below is a printed
-   * B+ tree(3 max leaf, 4 max internal) after inserting key:
-   *  {1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 18, 19, 20}
-   *
-   *                               (25)
-   *                 (9,17,19)                          (33)
-   *  (1,5)    (9,13)    (17,18)    (19,20,21)    (25,29)    (33,37)
-   *
-   * @return std::string
-   */
   auto DrawBPlusTree() -> std::string;
-
-  // 下面的方法需要Transaction类型，暂时注释掉
-  // read data from file and insert one by one
-  // void InsertFromFile(const std::string &file_name, Transaction *txn = nullptr);
-
-  // read data from file and remove one by one
-  // void RemoveFromFile(const std::string &file_name, Transaction *txn = nullptr);
-
-  /**
-   * @brief Read batch operations from input file, below is a sample file format
-   * insert some keys and delete 8, 9 from the tree with one step.
-   * { i1 i2 i3 i4 i5 i6 i7 i8 i9 i10 i30 d8 d9 } //  batch.txt
-   * B+ Tree(4 max leaf, 4 max internal) after processing:
-   *                            (5)
-   *                 (3)                (7)
-   *            (1,2)    (3,4)    (5,6)    (7,10,30) //  The output tree example
-   */
-  // void BatchOpsFromFile(const std::string &file_name, Transaction *txn = nullptr);
 
  private:
   auto GetPage(page_id_t page_id) -> BPlusTreePage *;
@@ -278,24 +227,20 @@ class BPlusTree {
    */
   auto SplitInternalPage(InternalPage *internal_page, InternalPage *new_page, const KeyType &key,
                          int32_t new_page_id) -> KeyType;
+  auto InsertIntoParent(BPlusTreePage *old_node, const KeyType &key, BPlusTreePage *new_node,
+                        Context *ctx) -> bool;
+  auto RemoveLeafEntry(LeafPage *leaf_page, InternalPage *parent_page, const KeyType &key,
+                       Context *ctx) -> void;
 
-  auto TryBorrowFromSibling(LeafPage *leaf_page, LeafPage *left_bro, LeafPage *right_bro,
-                            InternalPage *parent_page, int index) -> bool;
-  auto TryMergeWithSibling(LeafPage *leaf_page, LeafPage *left_bro, LeafPage *right_bro,
-                           InternalPage *parent_page, int index, Context *ctx) -> bool;
+  auto RemoveInternalEntry(InternalPage *internal_page, InternalPage *parent_page,
+                           const KeyType &key, Context *ctx) -> void;
+  auto LeafCanMerge(LeafPage *merge_page, LeafPage *left_leaf, LeafPage *right_leaf)
+      -> std::pair<bool, bool>;
 
-  auto FindParentInPath(InternalPage *target_page, Context *ctx) -> InternalPage *;
+  auto InternalCanMerge(InternalPage *merge_page, InternalPage *left_internal,
+                        InternalPage *right_internal) -> std::pair<bool, bool>;
 
-  auto TryBorrowFromInternalSibling(InternalPage *internal_page, InternalPage *left_bro,
-                                    InternalPage *right_bro, InternalPage *parent_page, int index)
-      -> bool;
-
-  auto TryMergeWithInternalSibling(InternalPage *internal_page, InternalPage *left_bro,
-                                   InternalPage *right_bro, InternalPage *parent_page, int index,
-                                   Context *ctx) -> bool;
-
-  void ToGraph(page_id_t page_id, const BPlusTreePage *page, std::ofstream &out);
-
+  auto CreateAndRegisterPage(page_id_t page_id, bool is_leaf) -> void;
   void PrintTree(page_id_t page_id, const BPlusTreePage *page);
 
   auto ToPrintableBPlusTree(page_id_t root_id) -> PrintableBPlusTree;

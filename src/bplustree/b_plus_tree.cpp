@@ -159,8 +159,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   // 查找要插入的叶子页面
   BPlusTreePage *page = GetPage(ctx.root_page_id_);
   ctx.WPush(page);
-  // REVIEW - 如果在得到子页面之前就解锁根页面会降低性能？
-  ctx.WUnlockRoot();
+
   while (!page->IsLeafPage()) {
     InternalPage *internal_page = static_cast<InternalPage *>(page);
     page_id_t next_page_id = internal_page->FindValue(key, comparator_, nullptr);
@@ -174,7 +173,8 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     ctx.CheckAndReleaseAncestors(page, OperationType::INSERT);
   }
   LeafPage *leaf_page = static_cast<LeafPage *>(page);
-
+  // REVIEW - 如果在得到子页面之前就解锁根页面会降低性能？
+  ctx.WUnlockRoot();
   ValueType existing_value;
   int existing_index = -1;
   if (leaf_page->FindValue(key, comparator_, existing_value, &existing_index)) {
@@ -540,14 +540,9 @@ auto BPLUSTREE_TYPE::RemoveInternalEntry(InternalPage *internal_page, InternalPa
     int merge_index = parent_page->ValueIndex(removed_page->GetPageId());
     KeyType parent_key = parent_page->KeyAt(merge_index);
 
-    // === 关键修复开始 ===
-    // 1. 将父节点分隔键插入到kept_page末尾
     kept_page->Insert(parent_key, removed_page->ValueAt(0), comparator_);
-
-    // 2. 合并剩余键值（跳过removed_page的第一个键）
-    for (int i = 1; i < removed_page->GetSize(); i++) {
-      kept_page->Insert(removed_page->KeyAt(i), removed_page->ValueAt(i), comparator_);
-    }
+    // 合并剩余键值
+    kept_page->MergeFrom(removed_page, &comparator_);
     if (parent_page->IsSafe(OperationType::DELETE)) {
       parent_page->Delete(merge_index);
     } else {
@@ -719,102 +714,6 @@ void BPLUSTREE_TYPE::PrintTree(page_id_t page_id, const BPlusTreePage *page) {
     for (int i = 0; i < internal->GetSize(); i++) {
       auto page = GetPage(internal->ValueAt(i));
       PrintTree(page->GetPageId(), page);
-    }
-  }
-}
-
-/**
- * This method is used for debug only, You don't need to modify
- */
-INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::Draw(const std::string &outf) {
-  if (IsEmpty()) {
-    return;
-  }
-
-  std::ofstream out(outf);
-  out << "digraph G {" << std::endl;
-  auto root_page_id = GetRootPageId();
-  auto page = GetPage(root_page_id);
-  ToGraph(page->GetPageId(), page, out);
-  out << "}" << std::endl;
-  out.close();
-}
-
-/**
- * This method is used for debug only, You don't need to modify
- */
-INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::ToGraph(page_id_t page_id, const BPlusTreePage *page, std::ofstream &out) {
-  std::string leaf_prefix("LEAF_");
-  std::string internal_prefix("INT_");
-  if (page->IsLeafPage()) {
-    auto *leaf = reinterpret_cast<const LeafPage *>(page);
-    // Print node name
-    out << leaf_prefix << page_id;
-    // Print node properties
-    out << "[shape=plain color=green ";
-    // Print data of the node
-    out << "label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n";
-    // Print data
-    out << "<TR><TD COLSPAN=\"" << leaf->GetSize() << "\">P=" << page_id << "</TD></TR>\n";
-    out << "<TR><TD COLSPAN=\"" << leaf->GetSize() << "\">" << "max_size=" << leaf->GetMaxSize()
-        << ",min_size=" << leaf->GetMinSize() << ",size=" << leaf->GetSize() << "</TD></TR>\n";
-    out << "<TR>";
-    for (int i = 0; i < leaf->GetSize(); i++) {
-      out << "<TD>" << leaf->KeyAt(i) << "</TD>\n";
-    }
-    out << "</TR>";
-    // Print table end
-    out << "</TABLE>>];\n";
-    // Print Leaf node link if there is a next page
-    if (leaf->GetNextPageId() != INVALID_PAGE_ID) {
-      out << leaf_prefix << page_id << " -> " << leaf_prefix << leaf->GetNextPageId() << ";\n";
-      out << "{rank=same " << leaf_prefix << page_id << " " << leaf_prefix << leaf->GetNextPageId()
-          << "};\n";
-    }
-  } else {
-    auto *inner = reinterpret_cast<const InternalPage *>(page);
-    // Print node name
-    out << internal_prefix << page_id;
-    // Print node properties
-    out << "[shape=plain color=pink ";  // why not?
-    // Print data of the node
-    out << "label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">\n";
-    // Print data
-    out << "<TR><TD COLSPAN=\"" << inner->GetSize() << "\">P=" << page_id << "</TD></TR>\n";
-    out << "<TR><TD COLSPAN=\"" << inner->GetSize() << "\">" << "max_size=" << inner->GetMaxSize()
-        << ",min_size=" << inner->GetMinSize() << ",size=" << inner->GetSize() << "</TD></TR>\n";
-    out << "<TR>";
-    for (int i = 0; i < inner->GetSize(); i++) {
-      out << "<TD PORT=\"p" << inner->ValueAt(i) << "\">";
-      if (i > 0) {
-        out << inner->KeyAt(i);
-      } else {
-        out << " ";
-      }
-      out << "</TD>\n";
-    }
-    out << "</TR>";
-    // Print table end
-    out << "</TABLE>>];\n";
-    // Print leaves
-    for (int i = 0; i < inner->GetSize(); i++) {
-      auto child_page = GetPage(inner->ValueAt(i));
-      ToGraph(child_page->GetPageId(), child_page, out);
-      if (i > 0) {
-        auto sibling_page = GetPage(inner->ValueAt(i - 1));
-        if (!sibling_page->IsLeafPage() && !child_page->IsLeafPage()) {
-          out << "{rank=same " << internal_prefix << sibling_page->GetPageId() << " "
-              << internal_prefix << child_page->GetPageId() << "};\n";
-        }
-      }
-      out << internal_prefix << page_id << ":p" << child_page->GetPageId() << " -> ";
-      if (child_page->IsLeafPage()) {
-        out << leaf_prefix << child_page->GetPageId() << ";\n";
-      } else {
-        out << internal_prefix << child_page->GetPageId() << ";\n";
-      }
     }
   }
 }

@@ -86,8 +86,6 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(const KeyType &key, const ValueType 
   }
   // std::move_backward(array_.begin() + index, array_.begin() + size, array_.begin() + size + 1);
   // array_[index] = MappingType{key, value};
-  // IncreaseSize(1);
-  // 2. 【修正】使用 vector::insert，安全且自动管理内存和大小
   array_.insert(array_.begin() + index, MappingType{key, value});
 
   IncreaseSize(1);

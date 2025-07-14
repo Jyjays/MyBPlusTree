@@ -171,7 +171,7 @@ TEST_F(BPlusTreeDeleteTest, DeleteCauseRedistribution) {
 
 class BPlusTreeConcurrentDeleteTest : public ::testing::Test {
  protected:
-  const size_t scale_factor_ = 48000;
+  const size_t scale_factor_ = 1000000;
   const int num_threads_ = 8;
   KeyComparator comparator_;
   std::unique_ptr<mybplus::BPlusTree<KeyType, ValueType, KeyComparator>> tree_;

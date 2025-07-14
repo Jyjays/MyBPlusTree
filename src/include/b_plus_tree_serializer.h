@@ -50,9 +50,9 @@ class BPlusTreeSerializer {
     // 1. 准备并写入文件头
     FileHeader header;
     header.root_page_id_ = tree_.GetRootPageId();
-    header.leaf_max_size_ = tree_.GetLeafMaxSize();          // 假设BPlusTree有此接口
-    header.internal_max_size_ = tree_.GetInternalMaxSize();  // 假设BPlusTree有此接口
-    header.page_count_ = tree_.GetPageCount();               // 假设BPlusTree有此接口
+    header.leaf_max_size_ = tree_.GetLeafMaxSize();
+    header.internal_max_size_ = tree_.GetInternalMaxSize();
+    header.page_count_ = tree_.GetPageCount();
 
     out_file.write(reinterpret_cast<const char *>(&header), sizeof(FileHeader));
 
@@ -90,12 +90,6 @@ class BPlusTreeSerializer {
         LeafPage *leaf_page = static_cast<LeafPage *>(page);
         // 写入键和值
         for (int i = 0; i < leaf_page->GetSize(); ++i) {
-          //   out_file.write(reinterpret_cast<const char
-          //   *>(&leaf_page->KeyAt(i)),
-          //                  sizeof(KeyType));
-          //   out_file.write(reinterpret_cast<const char
-          //   *>(&leaf_page->ValueAt(i)),
-          //                  sizeof(ValueType));
           KeyType key = leaf_page->KeyAt(i);
           ValueType value = leaf_page->ValueAt(i);
           out_file.write(reinterpret_cast<const char *>(&key), sizeof(KeyType));
@@ -113,12 +107,6 @@ class BPlusTreeSerializer {
         // 写入键和子节点ID
         for (int i = 0; i < internal_page->GetSize(); ++i) {
           // 注意：内部节点的ValueType是page_id_t
-          //   out_file.write(
-          //       reinterpret_cast<const char *>(&internal_page->KeyAt(i)),
-          //       sizeof(KeyType));
-          //   out_file.write(
-          //       reinterpret_cast<const char *>(&internal_page->ValueAt(i)),
-          //       sizeof(page_id_t));
           KeyType key = internal_page->KeyAt(i);
           page_id_t value = internal_page->ValueAt(i);
           out_file.write(reinterpret_cast<const char *>(&key), sizeof(KeyType));
@@ -146,7 +134,7 @@ class BPlusTreeSerializer {
       return false;
     }
 
-    // 1. 读取并验证文件头
+    // 读取并验证文件头
     FileHeader header;
     in_file.read(reinterpret_cast<char *>(&header), sizeof(FileHeader));
     if (std::string(header.magic_number_, 8) != "MYBPTREE") {
@@ -154,52 +142,36 @@ class BPlusTreeSerializer {
       return false;
     }
 
-    // 【修正】清空现有树并设置元数据
-    tree_.Clear();  // 首先清空树
+    // 清空树并设置基本属性
+    tree_.Clear();
     tree_.SetRootPageId(header.root_page_id_);
     tree_.SetLeafMaxSize(header.leaf_max_size_);
     tree_.SetInternalMaxSize(header.internal_max_size_);
 
+    // 如果是空树，直接返回
     if (header.root_page_id_ == INVALID_PAGE_ID) {
       in_file.close();
-      return true;  // 空树，直接返回
+      return true;
     }
 
-    // 2. 第一阶段：使用正确的ID创建所有页面的“骨架”
     for (uint32_t i = 0; i < header.page_count_; ++i) {
+      // 读取页面头部
       PageHeader p_header;
       in_file.read(reinterpret_cast<char *>(&p_header), sizeof(PageHeader));
-
-      // 【核心修正】调用新函数，使用文件中的ID来创建页面
+      // 创建页面
       tree_.CreateAndRegisterPage(p_header.page_id_, p_header.page_type_ == 1);
 
-      // 跳过页面内容，定位到下一个页面头部
-      size_t offset = 0;
-      if (p_header.page_type_ == 1) {  // Leaf
-        offset = p_header.size_ * (sizeof(KeyType) + sizeof(ValueType)) + sizeof(page_id_t);
-      } else {  // Internal
-        offset = p_header.size_ * (sizeof(KeyType) + sizeof(page_id_t));
-      }
-      in_file.seekg(offset, std::ios::cur);
-    }
-
-    // 3. 第二阶段：填充页面内容并建立链接
-    in_file.clear();
-    in_file.seekg(sizeof(FileHeader),
-                  std::ios::beg);  // 回到第一个页面的起始位置
-
-    for (uint32_t i = 0; i < header.page_count_; ++i) {
-      PageHeader p_header;
-      in_file.read(reinterpret_cast<char *>(&p_header), sizeof(PageHeader));
-
+      // 获取刚创建的页面
       BPlusTreePage *page = tree_.GetPage(p_header.page_id_);
-      if (page == nullptr) {  // 健壮性检查
-        std::cerr << "反序列化错误: 找不到页面 " << p_header.page_id_ << std::endl;
-        continue;
+      if (page == nullptr) {
+        std::cerr << "反序列化错误: 无法创建页面 " << p_header.page_id_ << std::endl;
+        in_file.close();
+        return false;
       }
+
       page->SetSize(p_header.size_);
 
-      if (p_header.page_type_ == 1) {  // Leaf
+      if (p_header.page_type_ == 1) {  // Leaf Page
         auto *leaf_page = static_cast<LeafPage *>(page);
         for (int j = 0; j < p_header.size_; ++j) {
           KeyType key;
@@ -208,10 +180,12 @@ class BPlusTreeSerializer {
           in_file.read(reinterpret_cast<char *>(&value), sizeof(ValueType));
           leaf_page->SetAt(j, key, value);
         }
+
         page_id_t next_page_id;
         in_file.read(reinterpret_cast<char *>(&next_page_id), sizeof(page_id_t));
         leaf_page->SetNextPageId(next_page_id);
-      } else {  // Internal
+
+      } else {  // Internal Page
         auto *internal_page = static_cast<InternalPage *>(page);
         for (int j = 0; j < p_header.size_; ++j) {
           KeyType key;
