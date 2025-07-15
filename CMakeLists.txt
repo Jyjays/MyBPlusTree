@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(MyBPlusTree VERSION 1.0 LANGUAGES CXX)
+project(MyBPlusTree VERSION 1.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,8 +26,8 @@ include_directories(src/include)
 
 file(GLOB_RECURSE SOURCES
     "src/bplustree/*.cpp"
+    "src/bplustree/*.c"
 )
-
 add_library(mybplustree STATIC ${SOURCES})
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest/CMakeLists.txt")
@@ -64,7 +64,7 @@ include(GoogleTest)
 gtest_discover_tests(test_concurrent)
 
 
-add_executable(test_serializer test/b_plus_tree_serializer.cpp)
+add_executable(test_serializer test/b_plus_tree_serializer_test.cpp)
 
 target_include_directories(
     test_serializer PRIVATE
@@ -77,7 +77,7 @@ target_link_libraries(test_serializer PRIVATE mybplustree gtest gtest_main)
 
 # remove
 
-add_executable(test_remove test/b_plus_remove.cpp)
+add_executable(test_remove test/b_plus_remove_test.cpp)
 
 target_include_directories(
     test_remove PRIVATE

@@ -162,12 +162,12 @@ class Context {
 
 #define BPLUSTREE_TYPE BPlusTree<KeyType, ValueType, KeyComparator>
 
-INDEX_TEMPLATE_ARGUMENTS
-class BPlusTreeSerializer;
+// INDEX_TEMPLATE_ARGUMENTS
+// class BPlusTreeSerializer;
 
 INDEX_TEMPLATE_ARGUMENTS
 class BPlusTree {
-  friend class BPlusTreeSerializer<KeyType, ValueType, KeyComparator>;
+  // friend class BPlusTreeSerializer<KeyType, ValueType, KeyComparator>;
   using InternalPage = BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator>;
   using LeafPage = BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>;
 
@@ -175,6 +175,9 @@ class BPlusTree {
   explicit BPlusTree(std::string name, const KeyComparator &comparator,
                      int leaf_max_size = LEAF_PAGE_SIZE,
                      int internal_max_size = INTERNAL_PAGE_SIZE);
+
+  // Destructor
+  ~BPlusTree() { Clear(); }
 
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
@@ -211,14 +214,14 @@ class BPlusTree {
   void Print();
 
   auto DrawBPlusTree() -> std::string;
-
- private:
   auto GetPage(page_id_t page_id) -> BPlusTreePage *;
   auto NewPage(int32_t *new_page_id) -> BPlusTreePage *;
   auto NewLeafPage(int32_t *new_page_id) -> LeafPage *;
   auto NewInternalPage(int32_t *new_page_id) -> InternalPage *;
   auto DeletePage(page_id_t page_id) -> void;
+  auto CreateAndRegisterPage(page_id_t page_id, bool is_leaf) -> void;
 
+ private:
   auto SplitLeafPage(LeafPage *leaf_page, LeafPage *new_page, const KeyType &key,
                      const ValueType &value, int32_t new_page_id) -> KeyType;
 
@@ -240,7 +243,6 @@ class BPlusTree {
   auto InternalCanMerge(InternalPage *merge_page, InternalPage *left_internal,
                         InternalPage *right_internal) -> std::pair<bool, bool>;
 
-  auto CreateAndRegisterPage(page_id_t page_id, bool is_leaf) -> void;
   void PrintTree(page_id_t page_id, const BPlusTreePage *page);
 
   auto ToPrintableBPlusTree(page_id_t root_id) -> PrintableBPlusTree;

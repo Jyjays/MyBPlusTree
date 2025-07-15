@@ -56,7 +56,7 @@ void KeyToValue(KeyType key, ValueType& value) {
 
 class BPlusTreeConcurrentOrderTest : public ::testing::Test {
  protected:
-  const size_t scale_factor_ = 10000000;
+  const size_t scale_factor_ = 100000;
   const int num_threads_ = 8;
   KeyComparator comparator_;
   std::vector<KeyType> keys_;

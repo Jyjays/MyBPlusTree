@@ -196,7 +196,6 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
     ASSERT_TRUE(tree_->GetValue(key, &result)) << "Key " << key << " should exist after insertion.";
   }
 
-  // 2. 划分数据集：确保没有重复
   std::vector<KeyType> keys_to_delete;
   std::set<KeyType> keys_to_keep;
 
@@ -250,18 +249,13 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
   std::cout << "[CONCURRENT TEST] Deletions performed: " << deletion_count << std::endl;
   std::cout << "[CONCURRENT TEST] Errors encountered: " << error_count << std::endl;
 
-  // 打印错误信息
   if (!error_messages.empty()) {
     std::cout << "[ERROR] Errors during deletion:" << std::endl;
     for (const auto &msg : error_messages) {
       std::cout << "  " << msg << std::endl;
     }
   }
-
-  // 4. 验证结果
   std::cout << "[VERIFICATION] Verifying final state..." << std::endl;
-
-  // a. 验证所有应该被删除的键确实不存在
 
   int deleted_verification_failures = 0;
   for (const auto &key : keys_to_delete) {
@@ -280,7 +274,6 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
               << deleted_verification_failures << std::endl;
   }
 
-  // b. 验证所有应该保留的键仍然存在且值正确
   int kept_verification_failures = 0;
   for (const auto &key : keys_to_keep) {
     std::vector<ValueType> result;
@@ -289,7 +282,7 @@ TEST_F(BPlusTreeConcurrentDeleteTest, ConcurrentDeleteAndVerify) {
 
     if (!tree_->GetValue(key, &result)) {
       kept_verification_failures++;
-      if (kept_verification_failures <= 10) {  // 只打印前10个失败
+      if (kept_verification_failures <= 10) {
         std::cout << "[ERROR] Key " << key << " should still exist but was not found." << std::endl;
       }
     } else if (result.size() != 1) {

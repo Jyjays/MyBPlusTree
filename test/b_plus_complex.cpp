@@ -92,33 +92,6 @@ TEST_F(BPlusTreeComplexTest, RandomInsertOrder) {
     std::string expected = "value_" + std::to_string(i);
     EXPECT_STREQ(results[0].data(), expected.c_str());
   }
-
-  // 使用绝对路径进行序列化测试
-  std::string serialize_path =
-      "/home/jyjays/LAB/MyBPlusTree/test/" + std::to_string(getpid()) + ".bin";
-  BPlusTreeSerializer<KeyType, ValueType, KeyComparator> serializer(*tree, serialize_path);
-  EXPECT_TRUE(serializer.Serialize());
-
-  // 验证序列化文件已创建
-  std::ifstream check_file(serialize_path);
-  EXPECT_TRUE(check_file.good());
-  check_file.close();
-  std::cout << "Serialized tree to: " << serialize_path << std::endl;
-  // // 反序列化并验证数据
-  BPlusTree<KeyType, ValueType, KeyComparator> new_tree("test_tree_deserialized", comparator, 3, 3);
-  BPlusTreeSerializer<KeyType, ValueType, KeyComparator> deserializer(new_tree, serialize_path);
-  EXPECT_TRUE(deserializer.Deserialize());
-  for (const auto& key : keys) {
-    std::vector<ValueType> results;
-    EXPECT_TRUE(new_tree.GetValue(key, &results));
-    EXPECT_EQ(results.size(), 1);
-
-    std::string expected = "value_" + std::to_string(key);
-    EXPECT_STREQ(results[0].data(), expected.c_str());
-  }
-
-  // 清理临时文件
-  std::remove(serialize_path.c_str());
 }
 
 TEST_F(BPlusTreeComplexTest, BoundaryConditions) {

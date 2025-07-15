@@ -89,9 +89,9 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Insert(const KeyType &key, const ValueType 
   array_.insert(array_.begin() + index, MappingType{key, value});
 
   IncreaseSize(1);
-  if (GetSize() > GetMaxSize()) {
-    array_.resize(GetMaxSize());
-  }
+  // if (GetSize() > GetMaxSize()) {
+  //   array_.resize(GetMaxSize());
+  // }
   return true;
 }
 

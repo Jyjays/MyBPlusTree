@@ -29,6 +29,7 @@ enum class OperationType { FIND = 0, INSERT, DELETE };
 
 class BPlusTreePage {
  public:
+  virtual ~BPlusTreePage() = default;
   auto IsLeafPage() const -> bool;
   void SetPageType(IndexPageType page_type);
 

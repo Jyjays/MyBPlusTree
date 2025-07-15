@@ -305,6 +305,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key) {
 
     // 如果是根页面且为空，删除根页面
     if (leaf_page->GetPageId() == ctx.root_page_id_ && leaf_page->GetSize() == 0) {
+      // 先释放锁
+      ctx.WPopBack();
       DeletePage(leaf_page->GetPageId());
       ctx.WLockRoot();
 
@@ -407,24 +409,23 @@ auto BPLUSTREE_TYPE::RemoveLeafEntry(LeafPage *leaf_page, InternalPage *parent_p
     int merge_index = parent_page->ValueIndex(removed_page->GetPageId());
     KeyType parent_key = parent_page->KeyAt(merge_index);
     kept_page->MergeFrom(removed_page->GetData(), removed_page->GetSize());
-
+    // 解锁两个兄弟节点
+    if (left_bro && left_bro->IsLeafPage()) {
+      ctx->WPopBack();
+    }
+    if (right_bro && right_bro->IsLeafPage()) {
+      ctx->WPopBack();
+    }
     if (parent_page->IsSafe(OperationType::DELETE)) {
       parent_page->Delete(merge_index);
       kept_page->SetNextPageId(removed_page->GetNextPageId());
     } else {
       parent_page->Delete(merge_index);
-      // 解锁两个兄弟节点
-      if (left_bro && left_bro->IsLeafPage()) {
-        ctx->WPopBack();
-      }
-      if (right_bro && right_bro->IsLeafPage()) {
-        ctx->WPopBack();
-      }
+
       ctx->WPopBack();  // 删除父节点的写锁
       InternalPage *grandparent_page = static_cast<InternalPage *>(ctx->WBack());
       RemoveInternalEntry(parent_page, grandparent_page, parent_key, ctx);
     }
-
     DeletePage(removed_page->GetPageId());
   }
 }
@@ -446,6 +447,7 @@ auto BPLUSTREE_TYPE::RemoveInternalEntry(InternalPage *internal_page, InternalPa
     ctx->root_page_id_ = new_root_id;
     // std::lock_guard<std::mutex> root_lock(root_mutex_);
     root_page_id_ = new_root_id;
+    ctx->WPopBack();  // 删除根页面的写锁
     DeletePage(internal_page->GetPageId());
     return;
   }
@@ -543,17 +545,18 @@ auto BPLUSTREE_TYPE::RemoveInternalEntry(InternalPage *internal_page, InternalPa
     kept_page->Insert(parent_key, removed_page->ValueAt(0), comparator_);
     // 合并剩余键值
     kept_page->MergeFrom(removed_page, &comparator_);
+    // 解锁两个兄弟节点
+    if (left_bro && !left_bro->IsLeafPage()) {
+      ctx->WPopBack();
+    }
+    if (right_bro && !right_bro->IsLeafPage()) {
+      ctx->WPopBack();
+    }
+
     if (parent_page->IsSafe(OperationType::DELETE)) {
       parent_page->Delete(merge_index);
     } else {
       parent_page->Delete(merge_index);
-      // 解锁两个兄弟节点
-      if (left_bro && !left_bro->IsLeafPage()) {
-        ctx->WPopBack();
-      }
-      if (right_bro && !right_bro->IsLeafPage()) {
-        ctx->WPopBack();
-      }
 
       ctx->WPopBack();  // 删除父节点的写锁
       InternalPage *grandparent_page = static_cast<InternalPage *>(ctx->WBack());
