@@ -42,21 +42,17 @@ typedef struct {
 
 // 序列化器结构
 typedef struct {
-  CppBPlusTree *tree;
+  CBPlusTree *tree;
   char *storage_path;
 } BPlusTreeSerializer;
 
 Queue *queue_create();
-
 void queue_push(Queue *q, page_id_t page_id);
-
 page_id_t queue_pop(Queue *q);
-
 bool queue_empty(Queue *q);
-
 void queue_destroy(Queue *q);
 
-BPlusTreeSerializer *serializer_create(CppBPlusTree *tree, const char *storage_path);
+BPlusTreeSerializer *serializer_create(CBPlusTree *tree, const char *storage_path);
 void serializer_destroy(BPlusTreeSerializer *serializer);
 bool serializer_serialize(BPlusTreeSerializer *serializer);
 bool serializer_deserialize(BPlusTreeSerializer *serializer);

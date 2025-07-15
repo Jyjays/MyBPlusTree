@@ -49,10 +49,10 @@ class BPlusTreeCSerializationTest : public ::testing::Test {
 };
 
 TEST_F(BPlusTreeCSerializationTest, SerializationAndDeserializationCorrectness) {
-  tree =
-      std::make_unique<BPlusTree<KeyType, ValueType, KeyComparator>>("test_tree", comparator, 3, 3);
+  tree = std::make_unique<BPlusTree<KeyType, ValueType, KeyComparator>>("test_tree", comparator,
+                                                                        128, 128);
 
-  const int NUM_ITEMS = 100;
+  const int NUM_ITEMS = 10000000;
   std::vector<KeyType> keys;
   GenerateUniqueKeys(NUM_ITEMS, keys);
 
@@ -64,7 +64,7 @@ TEST_F(BPlusTreeCSerializationTest, SerializationAndDeserializationCorrectness) 
 
   std::string serialize_path = std::to_string(getpid()) + ".bin";
 
-  CppBPlusTree* tree_handle = reinterpret_cast<CppBPlusTree*>(tree.get());
+  CBPlusTree* tree_handle = reinterpret_cast<CBPlusTree*>(tree.get());
 
   BPlusTreeSerializer* serializer = serializer_create(tree_handle, serialize_path.c_str());
   ASSERT_NE(serializer, nullptr);
@@ -83,7 +83,7 @@ TEST_F(BPlusTreeCSerializationTest, SerializationAndDeserializationCorrectness) 
   check_file.close();
 
   BPlusTree<KeyType, ValueType, KeyComparator> new_tree("deserialized_tree", comparator, 3, 3);
-  CppBPlusTree* new_tree_handle = reinterpret_cast<CppBPlusTree*>(&new_tree);
+  CBPlusTree* new_tree_handle = reinterpret_cast<CBPlusTree*>(&new_tree);
 
   BPlusTreeSerializer* deserializer = serializer_create(new_tree_handle, serialize_path.c_str());
   ASSERT_NE(deserializer, nullptr);
@@ -100,7 +100,7 @@ TEST_F(BPlusTreeCSerializationTest, SerializationAndDeserializationCorrectness) 
   EXPECT_EQ(new_tree.GetInternalMaxSize(), tree->GetInternalMaxSize());
   EXPECT_EQ(new_tree.GetPage(new_tree.GetRootPageId())->GetSize(),
             tree->GetPage(tree->GetRootPageId())->GetSize());
-  serializer_destroy(deserializer);  // 清理序列化器
+  serializer_destroy(deserializer);
 
   for (const auto& key : keys) {
     std::vector<ValueType> results;

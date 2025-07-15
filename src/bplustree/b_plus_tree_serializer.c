@@ -1,4 +1,5 @@
 #include "b_plus_tree_serializer.h"
+
 Queue *queue_create() {
   Queue *q = (Queue *)malloc(sizeof(Queue));
   q->front = q->rear = NULL;
@@ -45,7 +46,7 @@ void queue_destroy(Queue *q) {
   free(q);
 }
 
-BPlusTreeSerializer *serializer_create(CppBPlusTree *tree, const char *storage_path) {
+BPlusTreeSerializer *serializer_create(CBPlusTree *tree, const char *storage_path) {
   BPlusTreeSerializer *serializer = (BPlusTreeSerializer *)malloc(sizeof(BPlusTreeSerializer));
   serializer->tree = tree;
   serializer->storage_path = strdup(storage_path);
@@ -96,7 +97,7 @@ bool serializer_serialize(BPlusTreeSerializer *serializer) {
   while (!queue_empty(queue)) {
     page_id_t current_page_id = queue_pop(queue);
 
-    CppBPlusTreePage *page = get_page(serializer->tree, current_page_id);
+    CBPlusTreePage *page = get_page(serializer->tree, current_page_id);
     if (!page) {
       continue;
     }
@@ -192,7 +193,7 @@ bool serializer_deserialize(BPlusTreeSerializer *serializer) {
     return false;
   }
 
-  CppBPlusTree *tree = serializer->tree;
+  CBPlusTree *tree = serializer->tree;
   bpt_clear(tree);
   bpt_set_meta(tree, header.root_page_id, header.leaf_max_size, header.internal_max_size);
 
@@ -207,24 +208,7 @@ bool serializer_deserialize(BPlusTreeSerializer *serializer) {
 
     bpt_create_page_with_id(tree, p_header.page_id, p_header.page_type == 1);
 
-    size_t offset = 0;
-    if (p_header.page_type == 1) {  // Leaf
-      offset = p_header.size * (sizeof(KeyType) + sizeof(ValueType)) + sizeof(page_id_t);
-    } else {  // Internal
-      // 每个条目一个指针，size-1个键
-      offset = p_header.size * sizeof(page_id_t) + (p_header.size - 1) * sizeof(KeyType);
-    }
-    fseek(file, offset, SEEK_CUR);
-  }
-
-  // 4. 【第二阶段】填充页面内容并建立链接
-  fseek(file, sizeof(FileHeader), SEEK_SET);  // 回到第一个页面的起始位置
-
-  for (uint32_t i = 0; i < header.page_count; ++i) {
-    PageHeader p_header;
-    fread(&p_header, sizeof(PageHeader), 1, file);
-
-    CppBPlusTreePage *page = get_page(tree, p_header.page_id);
+    CBPlusTreePage *page = get_page(tree, p_header.page_id);
     bpt_page_set_size(page, p_header.size);
 
     if (p_header.page_type == 1) {  // Leaf
