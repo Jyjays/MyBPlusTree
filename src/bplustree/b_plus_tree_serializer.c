@@ -182,13 +182,13 @@ bool serializer_serialize(BPlusTreeSerializer *serializer) {
 bool serializer_deserialize(BPlusTreeSerializer *serializer) {
   FILE *file = fopen(serializer->storage_path, "rb");
   if (!file) {
-    perror("反序列化错误：无法打开文件");
+    perror("Deserialization failed: Unable to open file");
     return false;
   }
   FileHeader header;
   if (fread(&header, sizeof(FileHeader), 1, file) != 1 ||
       strncmp(header.magic_number, MAGIC_NUMBER, 8) != 0) {
-    fprintf(stderr, "错误: 无效的文件格式或损坏的文件头。\n");
+    fprintf(stderr, "Deserialization failed: Invalid file format\n");
     fclose(file);
     return false;
   }
